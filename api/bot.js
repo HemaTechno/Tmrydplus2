@@ -14,6 +14,7 @@ const SEMESTERS = {
   's2': 'الفصل الدراسي الثاني (Semester 2)',
 };
 
+// التحقق من اشتراك الطالب في القناة الإجبارية
 async function checkSubscription(ctx) {
   try {
     const member = await ctx.telegram.getChatMember(FORCE_SUB_CHANNEL, ctx.from.id);
@@ -24,6 +25,7 @@ async function checkSubscription(ctx) {
   }
 }
 
+// واجهة طلب الاشتراك الإجباري
 function sendSubscriptionPrompt(ctx, isEdit = false) {
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.url('📢 انضم للقناة أولاً', FORCE_SUB_LINK)],
@@ -34,7 +36,7 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
   return ctx.reply(text, keyboard);
 }
 
-// القائمة الرئيسية: تعرض التيرمات مباشرة للفرقة الثانية
+// القائمة الرئيسية: اختيار الفصل الدراسي (Semester 1 / Semester 2)
 function sendMainMenu(ctx, isEdit = false) {
   const buttons = [
     [Markup.button.callback('📖 الفصل الدراسي الأول (Semester 1)', 'sem_2_s1')],
@@ -46,8 +48,9 @@ function sendMainMenu(ctx, isEdit = false) {
   return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 }
 
-// أمر البدء
+// أمر البدء /start
 bot.start(async (ctx) => {
+  // حفظ بيانات الطالب في Firestore
   await db.collection('users').doc(ctx.from.id.toString()).set({
     userId: ctx.from.id,
     username: ctx.from.username || null,
@@ -62,6 +65,7 @@ bot.start(async (ctx) => {
   return sendMainMenu(ctx);
 });
 
+// زر التحقق من الاشتراك
 bot.action('check_sub', async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) {
@@ -71,7 +75,7 @@ bot.action('check_sub', async (ctx) => {
   return sendMainMenu(ctx, true);
 });
 
-// عرض المواد داخل التيرم
+// 1. عرض المواد داخل التيرم (معالجة آمنة لحجم الأزرار)
 bot.action(/sem_2_(s[12])/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -90,18 +94,19 @@ bot.action(/sem_2_(s[12])/, async (ctx) => {
     );
   }
 
+  // تجميع المواد واستخدام docId لضمان عدم تجاوز 64 بايت في callback_data
   const subjectsMap = new Map();
   snapshot.forEach((doc) => {
     const data = doc.data();
     const subName = data.subjectName || data.name;
     if (!subjectsMap.has(subName)) {
-      subjectsMap.set(subName, true);
+      subjectsMap.set(subName, doc.id);
     }
   });
 
   const buttons = [];
-  subjectsMap.forEach((_, subjectName) => {
-    buttons.push([Markup.button.callback(`📚 ${subjectName}`, `subj_2_${sem}_${encodeURIComponent(subjectName)}`)]);
+  subjectsMap.forEach((docId, subjectName) => {
+    buttons.push([Markup.button.callback(`📚 ${subjectName}`, `sub_${sem}_${docId}`)]);
   });
   buttons.push([Markup.button.callback('⬅️ رجوع للتيرمات', 'back_home')]);
 
@@ -112,13 +117,20 @@ bot.action(/sem_2_(s[12])/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// عرض المحاضرات والملفات الخاصة بالمادة
-bot.action(/subj_2_(s[12])_(.+)/, async (ctx) => {
+// 2. عرض المحاضرات والملفات الخاصة بالمادة
+bot.action(/sub_(s[12])_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
   const sem = ctx.match[1];
-  const subjectName = decodeURIComponent(ctx.match[2]);
+  const refDocId = ctx.match[2];
+
+  const refDoc = await db.collection('materials').doc(refDocId).get();
+  if (!refDoc.exists) {
+    return ctx.answerCbQuery('المادة غير موجودة');
+  }
+
+  const subjectName = refDoc.data().subjectName || refDoc.data().name;
 
   const snapshot = await db.collection('materials')
     .where('year', '==', '2')
@@ -149,7 +161,7 @@ bot.action(/subj_2_(s[12])_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// إرسال الملف للطالب
+// 3. إرسال الملف للطالب عبر النسخ من القناة
 bot.action(/get_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -168,17 +180,18 @@ bot.action(/get_(.+)/, async (ctx) => {
     await ctx.answerCbQuery('✅ تم إرسال الملف بنجاح');
   } catch (error) {
     console.error('Copy file error:', error);
-    await ctx.reply('⚠️ تعذر إرسال الملف، تأكد من صلاحيات البوت في القناة.');
+    await ctx.reply('⚠️ تعذر إرسال الملف، تأكد من وجود البوت كأدمن في القناة.');
   }
 });
 
-// العودة للقائمة الرئيسية
+// الرجوع للقائمة الرئيسية
 bot.action('back_home', async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
   return sendMainMenu(ctx, true);
 });
 
+// Handler لـ Vercel Serverless Function
 module.exports = async (req, res) => {
   if (req.method === 'POST') {
     try {
