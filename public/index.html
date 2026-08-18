@@ -17,15 +17,17 @@
     <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
       <div>
         <h1 class="text-2xl font-black text-indigo-600 flex items-center gap-2">
-          ⚡ منصة الفرقة الثانية الذكية
+          ⚡ منصة الفرقة الثانية الذكية (Semester 3 & 4)
         </h1>
-        <p class="text-sm text-slate-500 mt-1">إدارة المحاضرات، الملفات، والإشعارات التلقائية</p>
+        <p class="text-sm text-slate-500 mt-1">إدارة المحاضرات، وضع الصيانة، والإذاعة المباشرة</p>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          الخادم متصل
-        </span>
+
+      <!-- مفتاح وضع الصيانة -->
+      <div class="flex items-center gap-3 bg-slate-50 p-2.5 px-4 rounded-2xl border border-slate-200">
+        <span class="text-xs font-bold text-slate-700">وضع الصيانة:</span>
+        <button id="toggleMaintenanceBtn" onclick="toggleMaintenance()" class="bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow">
+          البوت يعمل 🟢
+        </button>
       </div>
     </header>
 
@@ -57,10 +59,10 @@
           <input type="hidden" id="editDocId" value="">
 
           <div>
-            <label class="block text-xs font-bold text-slate-600 mb-1.5">الفصل الدراسي (Semester):</label>
+            <label class="block text-xs font-bold text-slate-600 mb-1.5">الفصل الدراسي:</label>
             <select id="semSelect" onchange="updateSubjectsDropdown()" class="w-full border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
-              <option value="s1">Semester 1 (التيرم الأول)</option>
-              <option value="s2">Semester 2 (التيرم الثاني)</option>
+              <option value="s3">Semester 3 (تيرم 3)</option>
+              <option value="s4">Semester 4 (تيرم 4)</option>
             </select>
           </div>
 
@@ -109,7 +111,6 @@
             </div>
           </div>
 
-          <!-- إدخال رمز الأمان -->
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1.5">رمز الحماية (Admin Secret Key):</label>
             <input type="password" id="adminSecretKey" required placeholder="مطلوب لتأكيد الحفظ والإشعار" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none">
@@ -198,8 +199,39 @@
     const db = firebase.firestore();
 
     let allMaterialsCache = [];
+    let isMaintenance = false;
 
-    // تحميل الإحصائيات
+    // حالة الصيانة
+    function listenMaintenance() {
+      db.collection("settings").doc("system").onSnapshot(doc => {
+        const btn = document.getElementById("toggleMaintenanceBtn");
+        if (doc.exists && doc.data().maintenance === true) {
+          isMaintenance = true;
+          btn.className = "bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow";
+          btn.innerText = "البوت متوقف (صيانة) 🔴";
+        } else {
+          isMaintenance = false;
+          btn.className = "bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow";
+          btn.innerText = "البوت يعمل 🟢";
+        }
+      });
+    }
+
+    async function toggleMaintenance() {
+      const promptKey = prompt("أدخل رمز الحماية (Admin Secret Key) لتغيير وضع الصيانة:");
+      if (!promptKey) return;
+
+      try {
+        await db.collection("settings").doc("system").set({
+          maintenance: !isMaintenance,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        alert("✅ تم تغيير وضع تشغيل البوت بنجاح!");
+      } catch (err) {
+        alert("خطأ: " + err.message);
+      }
+    }
+
     function loadStats() {
       db.collection("users").onSnapshot(snap => {
         document.getElementById("statTotalUsers").innerText = snap.size;
@@ -257,7 +289,7 @@
           tr.className = "border-b border-slate-100 hover:bg-slate-50/80 transition";
           tr.innerHTML = `
             <td class="p-3.5">
-              <span class="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-bold">${item.semester === 's1' ? 'تيرم 1' : 'تيرم 2'}</span>
+              <span class="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-bold">${item.semester === 's3' ? 'Semester 3' : 'Semester 4'}</span>
             </td>
             <td class="p-3.5 font-bold text-slate-900">${item.subjectName || item.name}</td>
             <td class="p-3.5 text-xs text-slate-600">${item.category || '📑 محاضرة'}</td>
@@ -275,7 +307,6 @@
       });
     }
 
-    // حفظ المحاضرة
     document.getElementById("addMaterialForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const docId = document.getElementById("editDocId").value;
@@ -295,7 +326,7 @@
 
       try {
         const materialData = {
-          year: "2", // مثبتة دائماً للفرقة الثانية
+          year: "2",
           semester,
           subjectName,
           lectureTitle,
@@ -317,7 +348,6 @@
           finalDocId = newDoc.id;
           alert("✅ تمت إضافة المحتوى بنجاح!");
 
-          // إرسال الإشعار التلقائي
           if (shouldNotify) {
             fetch("/api/broadcast", {
               method: "POST",
@@ -414,6 +444,7 @@
       }
     });
 
+    listenMaintenance();
     loadStats();
     loadMaterials();
   </script>
