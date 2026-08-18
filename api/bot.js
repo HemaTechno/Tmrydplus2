@@ -15,7 +15,7 @@ const SEMESTERS = {
   's4': 'الفصل الدراسي الرابع (Semester 4)',
 };
 
-// فحص وضع الصيانة من قاعدة البيانات
+// فحص وضع الصيانة
 async function isMaintenanceMode() {
   try {
     const doc = await db.collection('settings').doc('system').get();
@@ -25,7 +25,7 @@ async function isMaintenanceMode() {
   }
 }
 
-// واجهة رسالة الصيانة
+// واجهة وضع الصيانة
 function sendMaintenanceMessage(ctx, isEdit = false) {
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.url('📢 قناة التليجرام', FORCE_SUB_LINK)],
@@ -73,11 +73,11 @@ function sendMainMenu(ctx, isEdit = false) {
   return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 }
 
-// أمر البدء /start
+// أمر البدء /start وتثبيت زر Menu
 bot.start(async (ctx) => {
-  // ضبط زر الـ Menu في تليجرام
+  // تثبيت الأمر في زر الـ Menu بشكل دائم
   ctx.telegram.setMyCommands([
-    { command: 'start', description: 'بدء تشغيل البوت والقائمة الرئيسية' }
+    { command: 'start', description: '🏠 القائمة الرئيسية والبدء' }
   ]).catch(() => {});
 
   if (await isMaintenanceMode()) {
@@ -109,7 +109,7 @@ bot.action('check_sub', async (ctx) => {
   return sendMainMenu(ctx, true);
 });
 
-// 1. عرض المواد داخل التيرم (Semester 3 / Semester 4)
+// 1. عرض المواد داخل التيرم
 bot.action(/sem_2_(s[34])/, async (ctx) => {
   if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
@@ -125,7 +125,9 @@ bot.action(/sem_2_(s[34])/, async (ctx) => {
   if (snapshot.empty) {
     return ctx.editMessageText(
       `لا توجد مواد مضافة حالياً في (${SEMESTERS[sem]}).`,
-      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للتيرمات', 'back_home')]])
+      Markup.inlineKeyboard([
+        [Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]
+      ])
     );
   }
 
@@ -142,7 +144,9 @@ bot.action(/sem_2_(s[34])/, async (ctx) => {
   subjectsMap.forEach((docId, subjectName) => {
     buttons.push([Markup.button.callback(`📚 ${subjectName}`, `sub_${sem}_${docId}`)]);
   });
-  buttons.push([Markup.button.callback('⬅️ رجوع للتيرمات', 'back_home')]);
+  
+  // زر العودة للقائمة الرئيسية
+  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]);
 
   await ctx.editMessageText(`📚 <b>مواد ${SEMESTERS[sem]}:</b>\nاختر المادة لعرض محاضراتها:`, {
     parse_mode: 'HTML',
@@ -174,7 +178,10 @@ bot.action(/sub_(s[34])_(.+)/, async (ctx) => {
   if (snapshot.empty) {
     return ctx.editMessageText(
       `لا توجد محاضرات مضافة حالياً لمادة (${subjectName}).`,
-      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`)]])
+      Markup.inlineKeyboard([
+        [Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`)],
+        [Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]
+      ])
     );
   }
 
@@ -185,7 +192,12 @@ bot.action(/sub_(s[34])_(.+)/, async (ctx) => {
     const title = data.lectureTitle || data.name;
     buttons.push([Markup.button.callback(`${icon} ${title}`, `get_${doc.id}`)]);
   });
-  buttons.push([Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`)]);
+
+  // أزرار التنقل والرجوع
+  buttons.push([
+    Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`),
+    Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')
+  ]);
 
   await ctx.editMessageText(`📑 محتوى مادة: <b>${subjectName}</b>\nاختر الملف المطلوب للتحميل:`, {
     parse_mode: 'HTML',
@@ -194,7 +206,7 @@ bot.action(/sub_(s[34])_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// 3. إرسال الملف مع أزرار التنقل السريع وحفظ المفضلة
+// 3. إرسال الملف والتنقل
 bot.action(/get_(.+)/, async (ctx) => {
   if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
@@ -208,10 +220,8 @@ bot.action(/get_(.+)/, async (ctx) => {
   const currentItem = doc.data();
 
   try {
-    // إرسال الملف من القناة
     await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, currentItem.messageId);
 
-    // جلب باقي محاضرات المادة لحساب السابق والتالي
     const allLecturesSnap = await db.collection('materials')
       .where('year', '==', currentItem.year)
       .where('semester', '==', currentItem.semester)
@@ -225,16 +235,20 @@ bot.action(/get_(.+)/, async (ctx) => {
     const row1 = [];
 
     if (currentIndex > 0) {
-      row1.push(Markup.button.callback('⬅️ المحاضرة السابقة', `get_${lecturesList[currentIndex - 1].id}`));
+      row1.push(Markup.button.callback('⬅️ السابقة', `get_${lecturesList[currentIndex - 1].id}`));
     }
     if (currentIndex >= 0 && currentIndex < lecturesList.length - 1) {
-      row1.push(Markup.button.callback('المحاضرة التالية ➡️', `get_${lecturesList[currentIndex + 1].id}`));
+      row1.push(Markup.button.callback('التالية ➡️', `get_${lecturesList[currentIndex + 1].id}`));
     }
     if (row1.length > 0) navButtons.push(row1);
 
     navButtons.push([
       Markup.button.callback('⭐ حفظ في المفضلة', `fav_add_${docId}`),
       Markup.button.callback('📁 قائمة المادة', `sub_${currentItem.semester}_${docId}`)
+    ]);
+
+    navButtons.push([
+      Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')
     ]);
 
     await ctx.reply(
@@ -249,7 +263,7 @@ bot.action(/get_(.+)/, async (ctx) => {
   }
 });
 
-// 4. إضافة ملف للمفضلة
+// 4. حفظ في المفضلة
 bot.action(/fav_add_(.+)/, async (ctx) => {
   const docId = ctx.match[1];
   await db.collection('users').doc(ctx.from.id.toString()).set({
@@ -259,7 +273,7 @@ bot.action(/fav_add_(.+)/, async (ctx) => {
   await ctx.answerCbQuery('⭐ تم حفظ المحاضرة في مفضلتك بنجاح!', { show_alert: true });
 });
 
-// 5. استعراض قائمة المفضلة
+// 5. استعراض المفضلة
 bot.action('view_favorites', async (ctx) => {
   if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
@@ -271,7 +285,9 @@ bot.action('view_favorites', async (ctx) => {
   if (favIds.length === 0) {
     return ctx.editMessageText(
       '⭐ ليس لديك أي ملفات محفوظة في المفضلة حتى الآن.\nيمكنك حفظ أي محاضرة بالضغط على "⭐ حفظ في المفضلة" عند استلامها.',
-      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للرئيسية', 'back_home')]])
+      Markup.inlineKeyboard([
+        [Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]
+      ])
     );
   }
 
@@ -283,7 +299,7 @@ bot.action('view_favorites', async (ctx) => {
       buttons.push([Markup.button.callback(`📄 ${data.subjectName} - ${data.lectureTitle}`, `get_${id}`)]);
     }
   }
-  buttons.push([Markup.button.callback('⬅️ رجوع للرئيسية', 'back_home')]);
+  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]);
 
   await ctx.editMessageText('⭐ <b>ملفاتك المحفوظة في المفضلة:</b>\nاضغط على أي ملف لتحميله مباشرة:', {
     parse_mode: 'HTML',
@@ -292,6 +308,7 @@ bot.action('view_favorites', async (ctx) => {
   await ctx.answerCbQuery();
 });
 
+// الرجوع للقائمة الرئيسية
 bot.action('back_home', async (ctx) => {
   if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
