@@ -7,18 +7,13 @@ const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const { secretKey, message, targetYear, isNotification, fileData } = req.body;
+  const { secretKey, message, isNotification, fileData } = req.body;
   if (secretKey !== ADMIN_SECRET_KEY) {
     return res.status(403).json({ error: 'رمز الحماية غير صحيح' });
   }
 
   try {
-    let usersQuery = db.collection('users');
-    if (targetYear && targetYear !== 'all') {
-      usersQuery = usersQuery.where('year', '==', targetYear);
-    }
-
-    const snapshot = await usersQuery.get();
+    const snapshot = await db.collection('users').get();
     if (snapshot.empty) {
       return res.status(200).json({ success: true, sentCount: 0, failCount: 0 });
     }
@@ -30,12 +25,10 @@ module.exports = async (req, res) => {
       const { userId } = doc.data();
       try {
         if (isNotification && fileData) {
-          // قالب الإشعار التلقائي عند نزول ملف
           const notifText = 
             `🔔 <b>تنبيه بنزول محتوى جديد!</b>\n\n` +
-            `🎓 <b>الفرقة:</b> الفرقة ${fileData.year}\n` +
             `📚 <b>المادة:</b> ${fileData.subjectName}\n` +
-            `🏷 <b>النوع:</b> ${fileData.category}\n` +
+            `🏷 <b>النوع:</b> ${fileData.category || '📑 محاضرة'}\n` +
             `📄 <b>العنوان:</b> ${fileData.lectureTitle}\n\n` +
             `اضغط على الزر أدناه لتحميل الملف فوراً 👇`;
 
@@ -45,7 +38,6 @@ module.exports = async (req, res) => {
 
           await bot.telegram.sendMessage(userId, notifText, { parse_mode: 'HTML', ...keyboard });
         } else {
-          // رسالة الإذاعة العادية
           await bot.telegram.sendMessage(userId, message, { parse_mode: 'HTML' });
         }
         sentCount++;
