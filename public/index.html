@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم البوت الأكاديمي</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <div class="max-w-4xl mx-auto py-10 px-4">
+    <header class="mb-8 border-b pb-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-indigo-600">لوحة تحكم بوت التيليجرام</h1>
+        <p class="text-sm text-gray-500">إدارة المواد والملفات والإذاعة الجماعية</p>
+      </div>
+      <span class="bg-indigo-100 text-indigo-800 text-xs px-3 py-1 rounded-full font-semibold">Active</span>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      
+      <!-- إضافة مادة جديدة -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">➕ إضافة مادة دراسية جديدة</h2>
+        <form id="addMaterialForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">الفرقة الدراسية:</label>
+            <select id="yearSelect" class="w-full border rounded-lg p-2 bg-gray-50 focus:ring focus:ring-indigo-200">
+              <option value="1">الفرقة الأولى</option>
+              <option value="2">الفرقة الثانية</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">الفصل الدراسي (Semester):</label>
+            <select id="semSelect" class="w-full border rounded-lg p-2 bg-gray-50 focus:ring focus:ring-indigo-200">
+              <option value="s1">Semester 1 (التيرم الأول)</option>
+              <option value="s2">Semester 2 (التيرم الثاني)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">اسم المادة أو الملف:</label>
+            <input type="text" id="matName" required placeholder="مثال: فارماكولوجي المحاضرة 1" class="w-full border rounded-lg p-2 focus:ring focus:ring-indigo-200">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">رقم الرسالة في القناة (Message ID):</label>
+            <input type="number" id="matMsgId" required placeholder="مثال: 145" class="w-full border rounded-lg p-2 focus:ring focus:ring-indigo-200">
+          </div>
+
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg transition">حفظ المادة</button>
+        </form>
+      </div>
+
+      <!-- إرسال رسالة جماعية (Broadcast) -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📢 إرسال إذاعة لجميع المستخدمين</h2>
+        <form id="broadcastForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">رمز الأمان (Admin Secret Key):</label>
+            <input type="password" id="secretKey" required placeholder="أدخل رمز الحماية الخاص باللوحة" class="w-full border rounded-lg p-2 focus:ring focus:ring-indigo-200">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">نص الرسالة (يدعم HTML):</label>
+            <textarea id="broadcastMsg" rows="5" required placeholder="اكتب الإعلان هنا..." class="w-full border rounded-lg p-2 focus:ring focus:ring-indigo-200"></textarea>
+          </div>
+
+          <button type="submit" id="broadcastBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-lg transition">إرسال الرسالة للجميع</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- قائمة المواد الحالية للحذف والإدارة -->
+    <div class="mt-10 bg-white p-6 rounded-xl shadow-sm border">
+      <h2 class="text-lg font-bold mb-4">📚 المواد والملفات المضافة حالياً</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-right border-collapse">
+          <thead>
+            <tr class="bg-gray-100 border-b">
+              <th class="p-3">الفرقة</th>
+              <th class="p-3">التيرم</th>
+              <th class="p-3">اسم المادة</th>
+              <th class="p-3">Message ID</th>
+              <th class="p-3">إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTable">
+            <tr><td colspan="5" class="p-3 text-center text-gray-400">جاري تحميل البيانات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ضع إعدادات تطبيق Firebase Client هنا
+    const firebaseConfig = {
+      apiKey: "AIzaSy...",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.appspot.com",
+      messagingSenderId: "123...",
+      appId: "1:123..."
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // جلب وعرض المواد
+    function loadMaterials() {
+      db.collection("materials").onSnapshot((snapshot) => {
+        const table = document.getElementById("materialsTable");
+        table.innerHTML = "";
+
+        if (snapshot.empty) {
+          table.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-gray-500">لا توجد مواد مضافة حالياً.</td></tr>`;
+          return;
+        }
+
+        snapshot.forEach((doc) => {
+          const item = doc.data();
+          const tr = document.createElement("tr");
+          tr.className = "border-b hover:bg-gray-50";
+          tr.innerHTML = `
+            <td class="p-3 font-semibold">الفرقة ${item.year}</td>
+            <td class="p-3">${item.semester === 's1' ? 'Semester 1' : 'Semester 2'}</td>
+            <td class="p-3">${item.name}</td>
+            <td class="p-3 font-mono text-gray-600">${item.messageId}</td>
+            <td class="p-3">
+              <button onclick="deleteMaterial('${doc.id}')" class="text-red-500 hover:text-red-700 text-xs font-semibold">🗑 حذف</button>
+            </td>
+          `;
+          table.appendChild(tr);
+        });
+      });
+    }
+
+    // إضافة مادة
+    document.getElementById("addMaterialForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const year = document.getElementById("yearSelect").value;
+      const semester = document.getElementById("semSelect").value;
+      const name = document.getElementById("matName").value;
+      const messageId = parseInt(document.getElementById("matMsgId").value, 10);
+
+      await db.collection("materials").add({
+        year,
+        semester,
+        name,
+        messageId,
+        createdAt: new Date().toISOString()
+      });
+
+      document.getElementById("matName").value = "";
+      document.getElementById("matMsgId").value = "";
+      alert("تمت إضافة المادة بنجاح!");
+    });
+
+    // حذف مادة
+    async function deleteMaterial(id) {
+      if (confirm("هل أنت متأكد من رغبتك في حذف هذا الملف؟")) {
+        await db.collection("materials").doc(id).delete();
+      }
+    }
+
+    // إرسال الإذاعة
+    document.getElementById("broadcastForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const secretKey = document.getElementById("secretKey").value;
+      const message = document.getElementById("broadcastMsg").value;
+      const btn = document.getElementById("broadcastBtn");
+
+      btn.disabled = true;
+      btn.innerText = "جاري الإرسال...";
+
+      try {
+        const res = await fetch("/api/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secretKey, message })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`تم الإرسال بنجاح! تم التوصيل إلى ${data.sentCount} مستخدم.`);
+          document.getElementById("broadcastMsg").value = "";
+        } else {
+          alert("خطأ: " + (data.error || "فشل الإرسال"));
+        }
+      } catch (err) {
+        alert("حدث خطأ أثناء الاتصال بالخادم.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "إرسال الرسالة للجميع";
+      }
+    });
+
+    loadMaterials();
+  </script>
+</body>
+</html>
