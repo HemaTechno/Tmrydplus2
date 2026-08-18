@@ -3,7 +3,6 @@ const { db } = require('../firebaseAdmin');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// قنوات الملفات لكل فرقة
 const CHANNELS = {
   '1': process.env.CHANNEL_Y1 || process.env.FILES_CHANNEL_ID,
   '2': process.env.CHANNEL_Y2 || process.env.FILES_CHANNEL_ID,
@@ -22,13 +21,12 @@ const SEMESTERS = {
   's2': 'Semester 2 (التيرم الثاني)',
 };
 
-// فحص الاشتراك الإجباري
 async function checkSubscription(ctx) {
   try {
     const member = await ctx.telegram.getChatMember(FORCE_SUB_CHANNEL, ctx.from.id);
     return ['creator', 'administrator', 'member'].includes(member.status);
   } catch (error) {
-    console.error('Error checking subscription:', error);
+    console.error('Subscription check error:', error);
     return false;
   }
 }
@@ -39,7 +37,6 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
     [Markup.button.callback('✅ تحقق من الانضمام', 'check_sub')],
   ]);
   const text = '⚠️ عذراً، يجب عليك الانضمام إلى القناة أولاً لتتمكن من استخدام البوت:';
-  
   if (isEdit) return ctx.editMessageText(text, keyboard);
   return ctx.reply(text, keyboard);
 }
@@ -48,13 +45,12 @@ function sendMainMenu(ctx, isEdit = false) {
   const buttons = Object.keys(YEARS).map((key) => [
     Markup.button.callback(`🎓 ${YEARS[key]}`, `year_${key}`),
   ]);
-  const text = '📚 مرحباً بك في بوت المواد والمحاضرات!\n\nاختر الفرقة الدراسية للمتابعة:';
+  const text = '📚 مرحباً بك في بوت المواد والمحاضرات الأكاديمي!\n\nاختر الفرقة الدراسية للمتابعة:';
 
   if (isEdit) return ctx.editMessageText(text, Markup.inlineKeyboard(buttons));
   return ctx.reply(text, Markup.inlineKeyboard(buttons));
 }
 
-// أمر البدء /start
 bot.start(async (ctx) => {
   await db.collection('users').doc(ctx.from.id.toString()).set({
     userId: ctx.from.id,
@@ -78,12 +74,19 @@ bot.action('check_sub', async (ctx) => {
   return sendMainMenu(ctx, true);
 });
 
-// الخطوة 1: اختيار التيرم بعد الفرقة
+// اختيار التيرم وتحديث فرقة الطالب في قاعدة البيانات
 bot.action(/year_(\d+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
   const year = ctx.match[1];
+
+  // حفظ فرقة المستخدم لضمان وصول التنبيهات الموجهة لفرقته
+  await db.collection('users').doc(ctx.from.id.toString()).set({
+    year: year,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+
   const buttons = [
     [Markup.button.callback('📖 Semester 1', `sem_${year}_s1`)],
     [Markup.button.callback('📖 Semester 2', `sem_${year}_s2`)],
@@ -94,7 +97,7 @@ bot.action(/year_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// الخطوة 2: عرض المواد المتاحة (Subjects) داخل الفرقة والتيرم
+// عرض المواد
 bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -114,11 +117,10 @@ bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
     );
   }
 
-  // تجميع المواد الفريدة بدون تكرار
   const subjectsMap = new Map();
   snapshot.forEach((doc) => {
     const data = doc.data();
-    const subName = data.subjectName || data.name; // التوافق مع البيانات
+    const subName = data.subjectName || data.name;
     if (!subjectsMap.has(subName)) {
       subjectsMap.set(subName, true);
     }
@@ -126,7 +128,6 @@ bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
 
   const buttons = [];
   subjectsMap.forEach((_, subjectName) => {
-    // نمرر الفرقة والتيرم واسم المادة
     buttons.push([Markup.button.callback(`📚 ${subjectName}`, `subj_${year}_${sem}_${encodeURIComponent(subjectName)}`)]);
   });
   buttons.push([Markup.button.callback('⬅️ رجوع للتيرمات', `year_${year}`)]);
@@ -135,7 +136,7 @@ bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// الخطوة 3: عرض محاضرات وملفات المادة المحددة
+// عرض المحاضرات
 bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -160,19 +161,20 @@ bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
   const buttons = [];
   snapshot.forEach((doc) => {
     const data = doc.data();
-    const lectureTitle = data.lectureTitle || data.name;
-    buttons.push([Markup.button.callback(`📄 ${lectureTitle}`, `get_${doc.id}`)]);
+    const icon = data.categoryIcon || '📄';
+    const title = data.lectureTitle || data.name;
+    buttons.push([Markup.button.callback(`${icon} ${title}`, `get_${doc.id}`)]);
   });
   buttons.push([Markup.button.callback('⬅️ رجوع للمواد', `sem_${year}_${sem}`)]);
 
-  await ctx.editMessageText(`📑 محاضرات مادة: *${subjectName}*\nاختر المحاضرة أو الملف للتحميل:`, {
-    parse_mode: 'Markdown',
+  await ctx.editMessageText(`📑 محتوى مادة: <b>${subjectName}</b>\nاختر الملف المطلوب للتحميل:`, {
+    parse_mode: 'HTML',
     ...Markup.inlineKeyboard(buttons)
   });
   await ctx.answerCbQuery();
 });
 
-// الخطوة 4: إرسال الملف للطالب
+// إرسال الملف
 bot.action(/get_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -189,14 +191,13 @@ bot.action(/get_(.+)/, async (ctx) => {
 
   try {
     await ctx.telegram.copyMessage(ctx.chat.id, targetChannel, item.messageId);
-    await ctx.answerCbQuery('✅ تم إرسال المحاضرة بنجاح');
+    await ctx.answerCbQuery('✅ تم إرسال الملف بنجاح');
   } catch (error) {
     console.error('Copy file error:', error);
-    await ctx.reply('⚠️ تعذر إرسال الملف، تأكد من وجود البوت كأدمن في القناة.');
+    await ctx.reply('⚠️ تعذر إرسال الملف، تأكد من صلاحيات البوت في القناة.');
   }
 });
 
-// رجوع للقائمة الرئيسية
 bot.action('back_home', async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -213,6 +214,6 @@ module.exports = async (req, res) => {
       res.status(500).send('Error');
     }
   } else {
-    res.status(200).send('Bot Serverless Running.');
+    res.status(200).send('Bot Active.');
   }
 };
