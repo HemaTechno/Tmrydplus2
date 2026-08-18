@@ -1,20 +1,43 @@
 const { Telegraf, Markup } = require('telegraf');
+const admin = require('firebase-admin');
 const { db } = require('../firebaseAdmin');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// قناة ملفات الفرقة الثانية
 const CHANNEL_ID = process.env.CHANNEL_Y2 || process.env.FILES_CHANNEL_ID;
-
 const FORCE_SUB_CHANNEL = process.env.FORCE_SUB_CHANNEL;
 const FORCE_SUB_LINK = process.env.FORCE_SUB_LINK;
+const DEV_USERNAME = 'Hema_tech1';
+const DEV_LINK = `https://t.me/${DEV_USERNAME}`;
 
 const SEMESTERS = {
-  's1': 'الفصل الدراسي الأول (Semester 1)',
-  's2': 'الفصل الدراسي الثاني (Semester 2)',
+  's3': 'الفصل الدراسي الثالث (Semester 3)',
+  's4': 'الفصل الدراسي الرابع (Semester 4)',
 };
 
-// التحقق من اشتراك الطالب في القناة الإجبارية
+// فحص وضع الصيانة من قاعدة البيانات
+async function isMaintenanceMode() {
+  try {
+    const doc = await db.collection('settings').doc('system').get();
+    return doc.exists && doc.data().maintenance === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// واجهة رسالة الصيانة
+function sendMaintenanceMessage(ctx, isEdit = false) {
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.url('📢 قناة التليجرام', FORCE_SUB_LINK)],
+    [Markup.button.url('👨‍💻 تواصل مع المطور', DEV_LINK)]
+  ]);
+  const text = '🛠 <b>البوت تحت الصيانة حالياً!</b>\n\nجاري العمل على حل المشكلة وتحديث النظام، يرجى المحاولة لاحقاً.';
+
+  if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
+  return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
+}
+
+// فحص الاشتراك الإجباري
 async function checkSubscription(ctx) {
   try {
     const member = await ctx.telegram.getChatMember(FORCE_SUB_CHANNEL, ctx.from.id);
@@ -25,24 +48,26 @@ async function checkSubscription(ctx) {
   }
 }
 
-// واجهة طلب الاشتراك الإجباري
 function sendSubscriptionPrompt(ctx, isEdit = false) {
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.url('📢 انضم للقناة أولاً', FORCE_SUB_LINK)],
     [Markup.button.callback('✅ تحقق من الانضمام', 'check_sub')],
+    [Markup.button.url('👨‍💻 تواصل مع المطور', DEV_LINK)]
   ]);
   const text = '⚠️ عذراً، يجب عليك الانضمام إلى القناة أولاً لتتمكن من استخدام البوت:';
   if (isEdit) return ctx.editMessageText(text, keyboard);
   return ctx.reply(text, keyboard);
 }
 
-// القائمة الرئيسية: اختيار الفصل الدراسي (Semester 1 / Semester 2)
+// القائمة الرئيسية للبوت
 function sendMainMenu(ctx, isEdit = false) {
   const buttons = [
-    [Markup.button.callback('📖 الفصل الدراسي الأول (Semester 1)', 'sem_2_s1')],
-    [Markup.button.callback('📖 الفصل الدراسي الثاني (Semester 2)', 'sem_2_s2')],
+    [Markup.button.callback('📖 الفصل الدراسي الثالث (Semester 3)', 'sem_2_s3')],
+    [Markup.button.callback('📖 الفصل الدراسي الرابع (Semester 4)', 'sem_2_s4')],
+    [Markup.button.callback('⭐ ملفاتي المحفوظة (المفضلة)', 'view_favorites')],
+    [Markup.button.url('👨‍💻 تواصل مع المطور', DEV_LINK)]
   ];
-  const text = '🎓 <b>أهلاً بك في منصة الفرقة الثانية!</b>\n\nاختر الفصل الدراسي للمتابعة:';
+  const text = '🎓 <b>أهلاً بك في منصة الفرقة الثانية!</b>\n\nاختر من القائمة أدناه للمتابعة:';
 
   if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
   return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
@@ -50,7 +75,15 @@ function sendMainMenu(ctx, isEdit = false) {
 
 // أمر البدء /start
 bot.start(async (ctx) => {
-  // حفظ بيانات الطالب في Firestore
+  // ضبط زر الـ Menu في تليجرام
+  ctx.telegram.setMyCommands([
+    { command: 'start', description: 'بدء تشغيل البوت والقائمة الرئيسية' }
+  ]).catch(() => {});
+
+  if (await isMaintenanceMode()) {
+    return sendMaintenanceMessage(ctx);
+  }
+
   await db.collection('users').doc(ctx.from.id.toString()).set({
     userId: ctx.from.id,
     username: ctx.from.username || null,
@@ -65,8 +98,9 @@ bot.start(async (ctx) => {
   return sendMainMenu(ctx);
 });
 
-// زر التحقق من الاشتراك
 bot.action('check_sub', async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
+
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) {
     return ctx.answerCbQuery('❌ لم تنضم للقناة بعد!', { show_alert: true });
@@ -75,8 +109,9 @@ bot.action('check_sub', async (ctx) => {
   return sendMainMenu(ctx, true);
 });
 
-// 1. عرض المواد داخل التيرم (معالجة آمنة لحجم الأزرار)
-bot.action(/sem_2_(s[12])/, async (ctx) => {
+// 1. عرض المواد داخل التيرم (Semester 3 / Semester 4)
+bot.action(/sem_2_(s[34])/, async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
@@ -94,7 +129,6 @@ bot.action(/sem_2_(s[12])/, async (ctx) => {
     );
   }
 
-  // تجميع المواد واستخدام docId لضمان عدم تجاوز 64 بايت في callback_data
   const subjectsMap = new Map();
   snapshot.forEach((doc) => {
     const data = doc.data();
@@ -117,8 +151,9 @@ bot.action(/sem_2_(s[12])/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// 2. عرض المحاضرات والملفات الخاصة بالمادة
-bot.action(/sub_(s[12])_(.+)/, async (ctx) => {
+// 2. عرض المحاضرات داخل المادة
+bot.action(/sub_(s[34])_(.+)/, async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
@@ -126,9 +161,7 @@ bot.action(/sub_(s[12])_(.+)/, async (ctx) => {
   const refDocId = ctx.match[2];
 
   const refDoc = await db.collection('materials').doc(refDocId).get();
-  if (!refDoc.exists) {
-    return ctx.answerCbQuery('المادة غير موجودة');
-  }
+  if (!refDoc.exists) return ctx.answerCbQuery('المادة غير موجودة');
 
   const subjectName = refDoc.data().subjectName || refDoc.data().name;
 
@@ -161,37 +194,111 @@ bot.action(/sub_(s[12])_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// 3. إرسال الملف للطالب عبر النسخ من القناة
+// 3. إرسال الملف مع أزرار التنقل السريع وحفظ المفضلة
 bot.action(/get_(.+)/, async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
 
-  if (!doc.exists) {
-    return ctx.answerCbQuery('الملف غير متاح حالياً');
-  }
+  if (!doc.exists) return ctx.answerCbQuery('الملف غير متاح حالياً');
 
-  const item = doc.data();
+  const currentItem = doc.data();
 
   try {
-    await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, item.messageId);
-    await ctx.answerCbQuery('✅ تم إرسال الملف بنجاح');
+    // إرسال الملف من القناة
+    await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, currentItem.messageId);
+
+    // جلب باقي محاضرات المادة لحساب السابق والتالي
+    const allLecturesSnap = await db.collection('materials')
+      .where('year', '==', currentItem.year)
+      .where('semester', '==', currentItem.semester)
+      .where('subjectName', '==', currentItem.subjectName)
+      .get();
+
+    const lecturesList = allLecturesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const currentIndex = lecturesList.findIndex(item => item.id === docId);
+
+    const navButtons = [];
+    const row1 = [];
+
+    if (currentIndex > 0) {
+      row1.push(Markup.button.callback('⬅️ المحاضرة السابقة', `get_${lecturesList[currentIndex - 1].id}`));
+    }
+    if (currentIndex >= 0 && currentIndex < lecturesList.length - 1) {
+      row1.push(Markup.button.callback('المحاضرة التالية ➡️', `get_${lecturesList[currentIndex + 1].id}`));
+    }
+    if (row1.length > 0) navButtons.push(row1);
+
+    navButtons.push([
+      Markup.button.callback('⭐ حفظ في المفضلة', `fav_add_${docId}`),
+      Markup.button.callback('📁 قائمة المادة', `sub_${currentItem.semester}_${docId}`)
+    ]);
+
+    await ctx.reply(
+      `📌 <b>${currentItem.lectureTitle || currentItem.name}</b>\n📚 مادة: ${currentItem.subjectName}\n\nتحكم في التنقل أو احفظ المحاضرة:`,
+      { parse_mode: 'HTML', ...Markup.inlineKeyboard(navButtons) }
+    );
+
+    await ctx.answerCbQuery('✅ تم إرسال الملف');
   } catch (error) {
     console.error('Copy file error:', error);
     await ctx.reply('⚠️ تعذر إرسال الملف، تأكد من وجود البوت كأدمن في القناة.');
   }
 });
 
-// الرجوع للقائمة الرئيسية
+// 4. إضافة ملف للمفضلة
+bot.action(/fav_add_(.+)/, async (ctx) => {
+  const docId = ctx.match[1];
+  await db.collection('users').doc(ctx.from.id.toString()).set({
+    favorites: admin.firestore.FieldValue.arrayUnion(docId)
+  }, { merge: true });
+
+  await ctx.answerCbQuery('⭐ تم حفظ المحاضرة في مفضلتك بنجاح!', { show_alert: true });
+});
+
+// 5. استعراض قائمة المفضلة
+bot.action('view_favorites', async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
+  const isSubscribed = await checkSubscription(ctx);
+  if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
+
+  const userDoc = await db.collection('users').doc(ctx.from.id.toString()).get();
+  const favIds = (userDoc.exists && userDoc.data().favorites) || [];
+
+  if (favIds.length === 0) {
+    return ctx.editMessageText(
+      '⭐ ليس لديك أي ملفات محفوظة في المفضلة حتى الآن.\nيمكنك حفظ أي محاضرة بالضغط على "⭐ حفظ في المفضلة" عند استلامها.',
+      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للرئيسية', 'back_home')]])
+    );
+  }
+
+  const buttons = [];
+  for (const id of favIds) {
+    const doc = await db.collection('materials').doc(id).get();
+    if (doc.exists) {
+      const data = doc.data();
+      buttons.push([Markup.button.callback(`📄 ${data.subjectName} - ${data.lectureTitle}`, `get_${id}`)]);
+    }
+  }
+  buttons.push([Markup.button.callback('⬅️ رجوع للرئيسية', 'back_home')]);
+
+  await ctx.editMessageText('⭐ <b>ملفاتك المحفوظة في المفضلة:</b>\nاضغط على أي ملف لتحميله مباشرة:', {
+    parse_mode: 'HTML',
+    ...Markup.inlineKeyboard(buttons)
+  });
+  await ctx.answerCbQuery();
+});
+
 bot.action('back_home', async (ctx) => {
+  if (await isMaintenanceMode()) return sendMaintenanceMessage(ctx, true);
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
   return sendMainMenu(ctx, true);
 });
 
-// Handler لـ Vercel Serverless Function
 module.exports = async (req, res) => {
   if (req.method === 'POST') {
     try {
