@@ -3,22 +3,15 @@ const { db } = require('../firebaseAdmin');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-const CHANNELS = {
-  '1': process.env.CHANNEL_Y1 || process.env.FILES_CHANNEL_ID,
-  '2': process.env.CHANNEL_Y2 || process.env.FILES_CHANNEL_ID,
-};
+// قناة ملفات الفرقة الثانية
+const CHANNEL_ID = process.env.CHANNEL_Y2 || process.env.FILES_CHANNEL_ID;
 
 const FORCE_SUB_CHANNEL = process.env.FORCE_SUB_CHANNEL;
 const FORCE_SUB_LINK = process.env.FORCE_SUB_LINK;
 
-const YEARS = {
-  '1': 'الفرقة الأولى',
-  '2': 'الفرقة الثانية',
-};
-
 const SEMESTERS = {
-  's1': 'Semester 1 (التيرم الأول)',
-  's2': 'Semester 2 (التيرم الثاني)',
+  's1': 'الفصل الدراسي الأول (Semester 1)',
+  's2': 'الفصل الدراسي الثاني (Semester 2)',
 };
 
 async function checkSubscription(ctx) {
@@ -41,21 +34,25 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
   return ctx.reply(text, keyboard);
 }
 
+// القائمة الرئيسية: تعرض التيرمات مباشرة للفرقة الثانية
 function sendMainMenu(ctx, isEdit = false) {
-  const buttons = Object.keys(YEARS).map((key) => [
-    Markup.button.callback(`🎓 ${YEARS[key]}`, `year_${key}`),
-  ]);
-  const text = '📚 مرحباً بك في بوت المواد والمحاضرات الأكاديمي!\n\nاختر الفرقة الدراسية للمتابعة:';
+  const buttons = [
+    [Markup.button.callback('📖 الفصل الدراسي الأول (Semester 1)', 'sem_2_s1')],
+    [Markup.button.callback('📖 الفصل الدراسي الثاني (Semester 2)', 'sem_2_s2')],
+  ];
+  const text = '🎓 <b>أهلاً بك في منصة الفرقة الثانية!</b>\n\nاختر الفصل الدراسي للمتابعة:';
 
-  if (isEdit) return ctx.editMessageText(text, Markup.inlineKeyboard(buttons));
-  return ctx.reply(text, Markup.inlineKeyboard(buttons));
+  if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+  return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 }
 
+// أمر البدء
 bot.start(async (ctx) => {
   await db.collection('users').doc(ctx.from.id.toString()).set({
     userId: ctx.from.id,
     username: ctx.from.username || null,
     firstName: ctx.from.first_name || '',
+    year: '2',
     updatedAt: new Date().toISOString()
   }, { merge: true });
 
@@ -74,46 +71,22 @@ bot.action('check_sub', async (ctx) => {
   return sendMainMenu(ctx, true);
 });
 
-// اختيار التيرم وتحديث فرقة الطالب في قاعدة البيانات
-bot.action(/year_(\d+)/, async (ctx) => {
+// عرض المواد داخل التيرم
+bot.action(/sem_2_(s[12])/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
-  const year = ctx.match[1];
-
-  // حفظ فرقة المستخدم لضمان وصول التنبيهات الموجهة لفرقته
-  await db.collection('users').doc(ctx.from.id.toString()).set({
-    year: year,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
-
-  const buttons = [
-    [Markup.button.callback('📖 Semester 1', `sem_${year}_s1`)],
-    [Markup.button.callback('📖 Semester 2', `sem_${year}_s2`)],
-    [Markup.button.callback('⬅️ رجوع للفرق', 'back_home')],
-  ];
-
-  await ctx.editMessageText(`اختر الفصل الدراسي لـ (${YEARS[year]}):`, Markup.inlineKeyboard(buttons));
-  await ctx.answerCbQuery();
-});
-
-// عرض المواد
-bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
-  const isSubscribed = await checkSubscription(ctx);
-  if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
-
-  const year = ctx.match[1];
-  const sem = ctx.match[2];
+  const sem = ctx.match[1];
 
   const snapshot = await db.collection('materials')
-    .where('year', '==', year)
+    .where('year', '==', '2')
     .where('semester', '==', sem)
     .get();
 
   if (snapshot.empty) {
     return ctx.editMessageText(
-      `لا توجد مواد مضافة حالياً في (${YEARS[year]} - ${SEMESTERS[sem]}).`,
-      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للتيرمات', `year_${year}`)]])
+      `لا توجد مواد مضافة حالياً في (${SEMESTERS[sem]}).`,
+      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للتيرمات', 'back_home')]])
     );
   }
 
@@ -128,25 +101,27 @@ bot.action(/sem_(\d+)_(s[12])/, async (ctx) => {
 
   const buttons = [];
   subjectsMap.forEach((_, subjectName) => {
-    buttons.push([Markup.button.callback(`📚 ${subjectName}`, `subj_${year}_${sem}_${encodeURIComponent(subjectName)}`)]);
+    buttons.push([Markup.button.callback(`📚 ${subjectName}`, `subj_2_${sem}_${encodeURIComponent(subjectName)}`)]);
   });
-  buttons.push([Markup.button.callback('⬅️ رجوع للتيرمات', `year_${year}`)]);
+  buttons.push([Markup.button.callback('⬅️ رجوع للتيرمات', 'back_home')]);
 
-  await ctx.editMessageText(`📚 مواد ${YEARS[year]} (${SEMESTERS[sem]}):\nاختر المادة لعرض محاضراتها:`, Markup.inlineKeyboard(buttons));
+  await ctx.editMessageText(`📚 <b>مواد ${SEMESTERS[sem]}:</b>\nاختر المادة لعرض محاضراتها:`, {
+    parse_mode: 'HTML',
+    ...Markup.inlineKeyboard(buttons)
+  });
   await ctx.answerCbQuery();
 });
 
-// عرض المحاضرات
-bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
+// عرض المحاضرات والملفات الخاصة بالمادة
+bot.action(/subj_2_(s[12])_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
 
-  const year = ctx.match[1];
-  const sem = ctx.match[2];
-  const subjectName = decodeURIComponent(ctx.match[3]);
+  const sem = ctx.match[1];
+  const subjectName = decodeURIComponent(ctx.match[2]);
 
   const snapshot = await db.collection('materials')
-    .where('year', '==', year)
+    .where('year', '==', '2')
     .where('semester', '==', sem)
     .where('subjectName', '==', subjectName)
     .get();
@@ -154,7 +129,7 @@ bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
   if (snapshot.empty) {
     return ctx.editMessageText(
       `لا توجد محاضرات مضافة حالياً لمادة (${subjectName}).`,
-      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للمواد', `sem_${year}_${sem}`)]])
+      Markup.inlineKeyboard([[Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`)]])
     );
   }
 
@@ -165,7 +140,7 @@ bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
     const title = data.lectureTitle || data.name;
     buttons.push([Markup.button.callback(`${icon} ${title}`, `get_${doc.id}`)]);
   });
-  buttons.push([Markup.button.callback('⬅️ رجوع للمواد', `sem_${year}_${sem}`)]);
+  buttons.push([Markup.button.callback('⬅️ رجوع للمواد', `sem_2_${sem}`)]);
 
   await ctx.editMessageText(`📑 محتوى مادة: <b>${subjectName}</b>\nاختر الملف المطلوب للتحميل:`, {
     parse_mode: 'HTML',
@@ -174,7 +149,7 @@ bot.action(/subj_(\d+)_(s[12])_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 });
 
-// إرسال الملف
+// إرسال الملف للطالب
 bot.action(/get_(.+)/, async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
@@ -187,10 +162,9 @@ bot.action(/get_(.+)/, async (ctx) => {
   }
 
   const item = doc.data();
-  const targetChannel = CHANNELS[item.year] || process.env.FILES_CHANNEL_ID;
 
   try {
-    await ctx.telegram.copyMessage(ctx.chat.id, targetChannel, item.messageId);
+    await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, item.messageId);
     await ctx.answerCbQuery('✅ تم إرسال الملف بنجاح');
   } catch (error) {
     console.error('Copy file error:', error);
@@ -198,6 +172,7 @@ bot.action(/get_(.+)/, async (ctx) => {
   }
 });
 
+// العودة للقائمة الرئيسية
 bot.action('back_home', async (ctx) => {
   const isSubscribed = await checkSubscription(ctx);
   if (!isSubscribed) return sendSubscriptionPrompt(ctx, true);
