@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم البوت - الفرقة الثانية</title>
+  
+  <!-- خط تجوال و كايرو العصريين من Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Tajawal', 'sans-serif'],
+            mono: ['Plus Jakarta Sans', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Tajawal', sans-serif;
+    }
+    
+    /* خلفية متدرجة حديثة متناسقة مع الزجاج */
+    body {
+      background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(244, 63, 94, 0.08) 0%, transparent 50%),
+                  #0b0f19;
+      background-attachment: fixed;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* تأثير الزجاج (Glassmorphism) */
+    .glass-panel {
+      background: rgba(17, 24, 39, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-panel-subtle {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* حقول الإدخال الزجاجية */
+    .glass-input {
+      background: rgba(15, 23, 42, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      color: #f8fafc !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-input:focus {
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 0 20px rgba(99, 102, 241, 0.2) !important;
+      background: rgba(15, 23, 42, 0.85) !important;
+    }
+
+    /* إخفاء شريط التمرير الافتراضي وتنسيقه بشكل أنيق */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* نبض خفيف لحالة البوت */
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+      50% { transform: scale(1.05); opacity: 0.85; filter: drop-shadow(0 0 12px currentColor); }
+    }
+    .pulse-indicator {
+      animation: pulse-glow 2.5s infinite;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-white p-3 sm:p-6 lg:p-8">
+
+  <!-- عناصر إضاءة ديكورية خلفية (Glow effects) -->
+  <div class="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+  <div class="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <!-- Header / شريط العنوان الرئيسي -->
+    <header class="glass-panel rounded-3xl p-6 sm:p-7 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-t border-white/10 relative overflow-hidden">
+      <!-- وميض علوي خفيف -->
+      <div class="absolute top-0 right-0 left-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent"></div>
+
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/30 border border-indigo-400/30">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200">
+            منصة الفرقة الثانية الذكية
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
+            <span>Semester 3 & 4</span>
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+            <span>إدارة المحاضرات، وضع الصيانة، والإذاعة المباشرة</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- زر التحكم بوضع الصيانة -->
+      <div class="flex items-center gap-3 glass-panel-subtle p-2 px-4 rounded-2xl w-full md:w-auto justify-between md:justify-start border border-white/10">
+        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-server text-indigo-400"></i> حالة البوت:
+        </span>
+        <button id="toggleMaintenanceBtn" onclick="toggleMaintenance()" class="relative overflow-hidden group bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-4 py-2 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg shadow-emerald-950/40">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-indicator"></span>
+          <span id="maintenanceText">البوت يعمل 🟢</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Analytics Cards / كروت الإحصائيات -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      
+      <!-- إجمالي الطلاب -->
+      <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-indigo-500/40 transition duration-300">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition"></div>
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+              <i class="fa-solid fa-users text-indigo-400 ml-1"></i> إجمالي الطلاب المشتركين
+            </span>
+            <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight" id="statTotalUsers">0</div>
+          </div>
+          <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl group-hover:scale-110 transition duration-300">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- إجمالي المحاضرات -->
+      <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-emerald-500/40 transition duration-300">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition"></div>
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+              <i class="fa-solid fa-folder-open text-emerald-400 ml-1"></i> إجمالي الملفات والمحاضرات
+            </span>
+            <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight" id="statTotalMaterials">0</div>
+          </div>
+          <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl group-hover:scale-110 transition duration-300">
+            <i class="fa-solid fa-book-bookmark"></i>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Operations Grid / النماذج التفاعلية -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- إضافة / تعديل محاضرة -->
+      <div class="lg:col-span-7 glass-panel rounded-3xl p-6 sm:p-7 relative">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2.5" id="formTitle">
+            <span class="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 text-sm">
+              <i class="fa-solid fa-file-circle-plus"></i>
+            </span>
+            إضافة محتوى / محاضرة جديدة
+          </h2>
+          <button id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-xl transition">
+            <i class="fa-solid fa-xmark ml-1"></i> إلغاء التعديل
+          </button>
+        </div>
+
+        <form id="addMaterialForm" class="space-y-4">
+          <input type="hidden" id="editDocId" value="">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">الفصل الدراسي:</label>
+              <select id="semSelect" onchange="updateSubjectsDropdown()" class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer">
+                <option value="s3" class="bg-slate-900 text-white">Semester 3 (تيرم 3)</option>
+                <option value="s4" class="bg-slate-900 text-white">Semester 4 (تيرم 4)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">نوع المحتوى (Category):</label>
+              <select id="categorySelect" class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer">
+                <option value="📑|شيت / محاضرة" class="bg-slate-900 text-white">📑 شيت ومحاضرة نظري</option>
+                <option value="🧪|سكشن عملي" class="bg-slate-900 text-white">🧪 سكشن عملي</option>
+                <option value="📝|بنك أسئلة و MCQs" class="bg-slate-900 text-white">📝 بنك أسئلة و MCQs</option>
+                <option value="🎙|تسجيل صوتي" class="bg-slate-900 text-white">🎙 تسجيل صوتي / ريكورد</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- قائمة المواد المضافة مسبقاً -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-2">المواد المسجلة مسبقاً في هذا التيرم:</label>
+            <select id="existingSubjects" onchange="onSelectExistingSubject()" class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer text-slate-300">
+              <option value="" class="bg-slate-900 text-slate-400">-- اختر مادة موجودة أو اكتب مادة جديدة بالأسفل --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-2">اسم المادة الأساسية:</label>
+            <input type="text" id="subjectName" required placeholder="مثال: تمريض باطني وجراحي" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">عنوان الملف / المحاضرة:</label>
+              <input type="text" id="lectureTitle" required placeholder="مثال: المحاضرة 1 - Introduction" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">رقم الرسالة في القناة (Message ID):</label>
+              <input type="number" id="matMsgId" required placeholder="مثال: 120" class="glass-input w-full rounded-xl p-3 text-sm font-mono placeholder-slate-500">
+            </div>
+          </div>
+
+          <!-- خيار التنبيه التلقائي -->
+          <div class="glass-panel-subtle border border-indigo-500/20 p-3.5 rounded-2xl flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="sendNotificationCheck" checked class="w-4 h-4 text-indigo-600 rounded bg-slate-900 border-slate-700 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer">
+              <label for="sendNotificationCheck" class="text-xs font-bold text-indigo-200 cursor-pointer">
+                🔔 إرسال إشعار فوري وتلقائي للطلاب عند الحفظ
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-2">رمز الحماية (Admin Secret Key):</label>
+            <input type="password" id="adminSecretKey" required placeholder="مطلوب لتأكيد الحفظ والإشعار" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500 font-mono">
+          </div>
+
+          <button type="submit" id="saveMaterialBtn" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3.5 rounded-xl transition duration-300 shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>حفظ وإضافة للمنصة</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- الإذاعة الجماعية -->
+      <div class="lg:col-span-5 glass-panel rounded-3xl p-6 sm:p-7 flex flex-col justify-between relative">
+        <div>
+          <h2 class="text-lg font-bold text-emerald-400 mb-6 pb-4 border-b border-white/10 flex items-center gap-2.5">
+            <span class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 text-sm">
+              <i class="fa-solid fa-bullhorn"></i>
+            </span>
+            بث رسالة وإعلان للطلاب
+          </h2>
+
+          <form id="broadcastForm" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">رمز الحماية (Admin Secret Key):</label>
+              <input type="password" id="broadcastSecretKey" required placeholder="رمز الأمان للإرسال" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500 font-mono">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">نص الإعلان (يدعم HTML):</label>
+              <textarea id="broadcastMsg" rows="10" required placeholder="اكتب نص الإعلان أو التنبيهات هنا..." class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500 resize-none"></textarea>
+            </div>
+
+            <button type="submit" id="broadcastBtn" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold py-3.5 rounded-xl transition duration-300 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>إرسال الإعلان للجميع</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- جدول عرض وإدارة المحتوى -->
+    <div class="glass-panel rounded-3xl p-6 sm:p-7">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-white/10">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i> قائمة المحاضرات والملفات المرفوعة
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">يمكنك البحث والتعديل والحذف بسهولة تامة</p>
+        </div>
+        
+        <div class="w-full sm:w-72 relative">
+          <i class="fa-solid fa-magnifying-glass absolute right-3.5 top-3 text-slate-400 text-xs pointer-events-none"></i>
+          <input type="text" id="tableSearch" onkeyup="filterTable()" placeholder="بحث سريع بالمادة أو العنوان..." class="glass-input w-full rounded-xl pr-9 pl-3 py-2.5 text-xs placeholder-slate-400">
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-white/5">
+        <table class="w-full text-sm text-right border-collapse" id="mainTable">
+          <thead>
+            <tr class="bg-slate-900/80 text-slate-300 text-xs border-b border-white/10 font-bold">
+              <th class="p-4">التيرم</th>
+              <th class="p-4">المادة</th>
+              <th class="p-4">النوع</th>
+              <th class="p-4">عنوان الملف</th>
+              <th class="p-4">Msg ID</th>
+              <th class="p-4 text-center">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTable" class="divide-y divide-white/5">
+            <tr>
+              <td colspan="6" class="p-8 text-center text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin ml-2 text-indigo-400"></i> جاري تحميل البيانات...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
+      authDomain: "hhhhhh-d4fb8.firebaseapp.com",
+      databaseURL: "https://hhhhhh-d4fb8-default-rtdb.firebaseio.com",
+      projectId: "hhhhhh-d4fb8",
+      storageBucket: "hhhhhh-d4fb8.appspot.com",
+      messagingSenderId: "24512338206",
+      appId: "1:24512338206:web:dfe045db59bd3434a2110f",
+      measurementId: "G-HD4R7GNQ5H"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let allMaterialsCache = [];
+    let isMaintenance = false;
+
+    // حالة الصيانة
+    function listenMaintenance() {
+      db.collection("settings").doc("system").onSnapshot(doc => {
+        const btn = document.getElementById("toggleMaintenanceBtn");
+        const txt = document.getElementById("maintenanceText");
+        
+        if (doc.exists && doc.data().maintenance === true) {
+          isMaintenance = true;
+          btn.className = "relative overflow-hidden group bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold px-4 py-2 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg shadow-rose-950/40";
+          txt.innerText = "البوت متوقف (صيانة) 🔴";
+          btn.querySelector('.pulse-indicator').className = "w-2 h-2 rounded-full bg-rose-400 pulse-indicator";
+        } else {
+          isMaintenance = false;
+          btn.className = "relative overflow-hidden group bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-4 py-2 rounded-xl transition duration-300 flex items-center gap-2 shadow-lg shadow-emerald-950/40";
+          txt.innerText = "البوت يعمل 🟢";
+          btn.querySelector('.pulse-indicator').className = "w-2 h-2 rounded-full bg-emerald-400 pulse-indicator";
+        }
+      });
+    }
+
+    async function toggleMaintenance() {
+      const promptKey = prompt("أدخل رمز الحماية (Admin Secret Key) لتغيير وضع الصيانة:");
+      if (!promptKey) return;
+
+      try {
+        await db.collection("settings").doc("system").set({
+          maintenance: !isMaintenance,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        alert("✅ تم تغيير وضع تشغيل البوت بنجاح!");
+      } catch (err) {
+        alert("خطأ: " + err.message);
+      }
+    }
+
+    function loadStats() {
+      db.collection("users").onSnapshot(snap => {
+        document.getElementById("statTotalUsers").innerText = snap.size;
+      });
+    }
+
+    function updateSubjectsDropdown() {
+      const sem = document.getElementById("semSelect").value;
+      const select = document.getElementById("existingSubjects");
+      
+      select.innerHTML = '<option value="" class="bg-slate-900 text-slate-400">-- اختر مادة موجودة أو اكتب مادة جديدة بالأسفل --</option>';
+
+      const subjectsSet = new Set();
+      allMaterialsCache.forEach(item => {
+        if (item.semester === sem) {
+          const name = item.subjectName || item.name;
+          if (name) subjectsSet.add(name);
+        }
+      });
+
+      subjectsSet.forEach(subName => {
+        const option = document.createElement("option");
+        option.value = subName;
+        option.className = "bg-slate-900 text-white";
+        option.textContent = `📚 ${subName}`;
+        select.appendChild(option);
+      });
+    }
+
+    function onSelectExistingSubject() {
+      const selected = document.getElementById("existingSubjects").value;
+      if (selected) {
+        document.getElementById("subjectName").value = selected;
+      }
+    }
+
+    function loadMaterials() {
+      db.collection("materials").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+        allMaterialsCache = [];
+        const table = document.getElementById("materialsTable");
+        table.innerHTML = "";
+
+        document.getElementById("statTotalMaterials").innerText = snapshot.size;
+
+        if (snapshot.empty) {
+          table.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">لا توجد محاضرات مضافة حتى الآن.</td></tr>`;
+          updateSubjectsDropdown();
+          return;
+        }
+
+        snapshot.forEach((doc) => {
+          const item = { id: doc.id, ...doc.data() };
+          allMaterialsCache.push(item);
+
+          const tr = document.createElement("tr");
+          tr.className = "border-b border-white/5 hover:bg-white/[0.03] transition duration-200";
+          tr.innerHTML = `
+            <td class="p-4">
+              <span class="text-xs ${item.semester === 's3' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'bg-purple-500/20 text-purple-300 border-purple-500/30'} border px-2.5 py-1 rounded-full font-bold">
+                ${item.semester === 's3' ? 'Semester 3' : 'Semester 4'}
+              </span>
+            </td>
+            <td class="p-4 font-bold text-white">${item.subjectName || item.name}</td>
+            <td class="p-4 text-xs text-slate-300">
+              <span class="bg-slate-800/80 px-2 py-1 rounded-lg border border-white/5">${item.category || '📑 محاضرة'}</span>
+            </td>
+            <td class="p-4 font-medium text-slate-200">${item.lectureTitle || item.name}</td>
+            <td class="p-4 font-mono text-xs text-indigo-400 font-semibold">${item.messageId}</td>
+            <td class="p-4 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <button onclick="editMaterial('${doc.id}')" class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition">
+                  <i class="fa-solid fa-pen-to-square ml-1"></i> تعديل
+                </button>
+                <button onclick="deleteMaterial('${doc.id}')" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-lg text-xs font-semibold transition">
+                  <i class="fa-solid fa-trash ml-1"></i> حذف
+                </button>
+              </div>
+            </td>
+          `;
+          table.appendChild(tr);
+        });
+
+        updateSubjectsDropdown();
+      });
+    }
+
+    document.getElementById("addMaterialForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const docId = document.getElementById("editDocId").value;
+      const semester = document.getElementById("semSelect").value;
+      const subjectName = document.getElementById("subjectName").value.trim();
+      const lectureTitle = document.getElementById("lectureTitle").value.trim();
+      const messageId = parseInt(document.getElementById("matMsgId").value, 10);
+      const categoryRaw = document.getElementById("categorySelect").value.split('|');
+      const categoryIcon = categoryRaw[0];
+      const category = categoryRaw[1];
+      const shouldNotify = document.getElementById("sendNotificationCheck").checked;
+      const secretKey = document.getElementById("adminSecretKey").value;
+
+      const saveBtn = document.getElementById("saveMaterialBtn");
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري الحفظ والمعالجة...';
+
+      try {
+        const materialData = {
+          year: "2",
+          semester,
+          subjectName,
+          lectureTitle,
+          name: lectureTitle,
+          categoryIcon,
+          category,
+          messageId,
+          updatedAt: new Date().toISOString()
+        };
+
+        let finalDocId = docId;
+
+        if (docId) {
+          await db.collection("materials").doc(docId).update(materialData);
+          alert("✅ تم تعديل بيانات المحاضرة بنجاح!");
+        } else {
+          materialData.createdAt = new Date().toISOString();
+          const newDoc = await db.collection("materials").add(materialData);
+          finalDocId = newDoc.id;
+          alert("✅ تمت إضافة المحتوى بنجاح!");
+
+          if (shouldNotify) {
+            fetch("/api/broadcast", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                secretKey,
+                isNotification: true,
+                fileData: { id: finalDocId, ...materialData }
+              })
+            }).then(r => r.json()).then(data => {
+              if (data.success) {
+                console.log(`تم إرسال إشعار فوري لـ ${data.sentCount} طالب.`);
+              }
+            });
+          }
+        }
+
+        resetForm();
+      } catch (err) {
+        alert("خطأ: " + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up ml-2"></i> حفظ وإضافة للمنصة';
+      }
+    });
+
+    function editMaterial(id) {
+      const item = allMaterialsCache.find(m => m.id === id);
+      if (!item) return;
+
+      document.getElementById("editDocId").value = id;
+      document.getElementById("semSelect").value = item.semester;
+      updateSubjectsDropdown();
+      document.getElementById("subjectName").value = item.subjectName || item.name;
+      document.getElementById("lectureTitle").value = item.lectureTitle || item.name;
+      document.getElementById("matMsgId").value = item.messageId;
+
+      document.getElementById("formTitle").innerHTML = '<span class="p-2 rounded-xl bg-amber-500/20 text-amber-400 text-sm"><i class="fa-solid fa-pen-nib"></i></span> تعديل المحاضرة';
+      document.getElementById("cancelEditBtn").classList.remove("hidden");
+      document.getElementById("saveMaterialBtn").innerHTML = '<i class="fa-solid fa-check ml-2"></i> حفظ التعديلات';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      document.getElementById("editDocId").value = "";
+      document.getElementById("lectureTitle").value = "";
+      document.getElementById("matMsgId").value = "";
+      document.getElementById("formTitle").innerHTML = '<span class="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 text-sm"><i class="fa-solid fa-file-circle-plus"></i></span> إضافة محتوى / محاضرة جديدة';
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+      document.getElementById("saveMaterialBtn").innerHTML = '<i class="fa-solid fa-cloud-arrow-up ml-2"></i> حفظ وإضافة للمنصة';
+    }
+
+    async function deleteMaterial(id) {
+      if (confirm("هل أنت متأكد من حذف هذه المحاضرة نهائياً؟")) {
+        await db.collection("materials").doc(id).delete();
+      }
+    }
+
+    function filterTable() {
+      const q = document.getElementById("tableSearch").value.toLowerCase();
+      const rows = document.querySelectorAll("#materialsTable tr");
+      rows.forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none";
+      });
+    }
+
+    document.getElementById("broadcastForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const secretKey = document.getElementById("broadcastSecretKey").value;
+      const message = document.getElementById("broadcastMsg").value;
+      const btn = document.getElementById("broadcastBtn");
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> جاري الإرسال...';
+
+      try {
+        const res = await fetch("/api/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secretKey, message })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`تم الإرسال بنجاح إلى ${data.sentCount} طالب.`);
+          document.getElementById("broadcastMsg").value = "";
+        } else {
+          alert("خطأ: " + (data.error || "فشل الإرسال"));
+        }
+      } catch (err) {
+        alert("حدث خطأ في الاتصال بالسيرفر.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-2"></i> إرسال الإعلان للجميع';
+      }
+    });
+
+    listenMaintenance();
+    loadStats();
+    loadMaterials();
+  </script>
+</body>
+</html>
