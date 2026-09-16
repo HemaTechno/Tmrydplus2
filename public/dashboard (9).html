@@ -5,21 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة تحكم المنصة الذكية</title>
   
-  <!-- خطوط Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- SweetAlert2 للـ UX الاحترافي -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -43,7 +34,6 @@
     @keyframes pulse-glow { 0%, 100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 4px currentColor); } 50% { transform: scale(1.05); opacity: 0.85; filter: drop-shadow(0 0 12px currentColor); } }
     .pulse-indicator { animation: pulse-glow 2.5s infinite; }
     
-    /* تنسيق نوافذ SweetAlert لتتماشى مع الموقع */
     .swal2-popup { font-family: 'Tajawal', sans-serif !important; background: #1e293b !important; color: #f8fafc !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px !important; }
     .swal2-title { color: #f8fafc !important; }
     .swal2-input { background: rgba(15, 23, 42, 0.8) !important; color: white !important; border: 1px solid rgba(255,255,255,0.2) !important; }
@@ -52,7 +42,6 @@
 </head>
 <body class="antialiased selection:bg-indigo-500 selection:text-white p-3 sm:p-6 lg:p-8">
 
-  <!-- عناصر إضاءة ديكورية -->
   <div class="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none -z-10"></div>
   <div class="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none -z-10"></div>
 
@@ -341,7 +330,6 @@
     let allSemestersCache = [];
     let isMaintenance = false;
 
-    // إعدادات الـ Toasts الاحترافية (الإشعارات الجانبية)
     const Toast = Swal.mixin({
       toast: true,
       position: 'top-end',
@@ -353,7 +341,7 @@
       iconColor: '#a5b4fc',
     });
 
-    // دالة طلب الباسورد الأنيقة
+    // إضافة مُدقق لمنع إرسال النافذة فارغة
     async function promptAdminKey(actionText) {
       const { value: key } = await Swal.fire({
         title: 'تأكيد الهوية',
@@ -364,7 +352,12 @@
         confirmButtonText: 'تأكيد',
         cancelButtonText: 'إلغاء',
         confirmButtonColor: '#4f46e5',
-        cancelButtonColor: '#64748b'
+        cancelButtonColor: '#64748b',
+        inputValidator: (value) => {
+          if (!value) {
+            return 'يجب إدخال الرمز السري لتتمكن من المتابعة!'
+          }
+        }
       });
       return key;
     }
@@ -423,7 +416,13 @@
       const isEdit = document.getElementById("editSemId").value !== "";
 
       try {
-        await db.collection("semesters").doc(id).set({ name, isActive, order: isEdit ? undefined : Date.now() }, { merge: true });
+        // 👈 تم حل مشكلة undefined هنا
+        const semData = { name, isActive };
+        if (!isEdit) {
+            semData.order = Date.now();
+        }
+        await db.collection("semesters").doc(id).set(semData, { merge: true });
+        
         Toast.fire({ icon: 'success', title: 'تم حفظ التيرم بنجاح!' });
         document.getElementById("addSemesterForm").reset();
         document.getElementById("editSemId").value = "";
@@ -471,7 +470,7 @@
       return sem ? sem.name : semId;
     }
 
-    // ================= إعدادات البوت والإحصائيات ================= //
+    // ================= إعدادات البوت ================= //
     function listenMaintenance() { 
       db.collection("settings").doc("system").onSnapshot(doc => {
         const btn = document.getElementById("toggleMaintenanceBtn");
@@ -517,7 +516,7 @@
       if (selected) document.getElementById("subjectName").value = selected;
     }
 
-    // ================= إدارة المحاضرات والملفات ================= //
+    // ================= إدارة المحاضرات ================= //
     function loadMaterials() {
       db.collection("materials").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
         allMaterialsCache = [];
@@ -595,12 +594,10 @@
 
         let finalDocId = docId;
         if (docId) {
-          // الحل لمشكلة Firebase Delete Error: نضعها فقط عند التعديل
           materialData.messageId = firebase.firestore.FieldValue.delete();
           await db.collection("materials").doc(docId).update(materialData);
           Toast.fire({ icon: 'success', title: 'تم تعديل بيانات المحاضرة بنجاح!' });
         } else {
-          // عدم إضافة FieldValue.delete() نهائياً عند الإضافة الجديدة
           materialData.createdAt = new Date().toISOString();
           const newDoc = await db.collection("materials").add(materialData);
           finalDocId = newDoc.id;
