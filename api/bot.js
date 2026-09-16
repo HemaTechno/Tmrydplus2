@@ -11,13 +11,13 @@ const DEV_USERNAME = 'Hema_tech1';
 const DEV_LINK = `https://t.me/${DEV_USERNAME}`;
 
 // ==========================================
-// 1. نظام الـ Caching (لتسريع الردود بشكل رهيب)
+// 1. نظام الـ Caching
 // ==========================================
 const cache = {
   maintenance: false,
   subjectMaintenance: {}, 
   bannedUsers: new Set(),
-  semesters: [], // 👈 تخزين التيرمات هنا ديناميكياً
+  semesters: [],
   lastCheck: 0
 };
 
@@ -35,7 +35,6 @@ async function updateCache() {
       cache.bannedUsers.clear();
       bannedSnap.forEach(doc => cache.bannedUsers.add(doc.id));
 
-      // 👈 جلب التيرمات من قاعدة البيانات وترتيبها
       const semSnap = await db.collection('semesters').orderBy('order', 'asc').get();
       cache.semesters = [];
       semSnap.forEach(doc => cache.semesters.push({ id: doc.id, ...doc.data() }));
@@ -73,7 +72,6 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
 function sendMainMenu(ctx, isEdit = false) {
   const buttons = [];
   
-  // 👈 بناء أزرار التيرمات ديناميكياً من الكاش
   cache.semesters.forEach(sem => {
     if (sem.isActive) {
       buttons.push([Markup.button.callback(`📖 ${sem.name}`, `sem_2_${sem.id}`)]);
@@ -83,14 +81,14 @@ function sendMainMenu(ctx, isEdit = false) {
   buttons.push([Markup.button.callback('⭐ ملفاتي المحفوظة (المفضلة)', 'view_favorites')]);
   buttons.push([Markup.button.url('👨‍💻 تواصل مع المطور', DEV_LINK)]);
   
-  const text = '🎓 <b>أهلاً بك في منصة الفرقة الثانية!</b>\n\nاختر من القائمة أدناه للمتابعة:';
+  const text = '🎓 <b>أهلاً بك في المنصة!</b>\n\nاختر من القائمة أدناه للمتابعة:';
   
   if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
   return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 }
 
 // ==========================================
-// 3. الـ Middlewares (تنظيف الكود من التكرار)
+// 3. الـ Middlewares
 // ==========================================
 bot.use((ctx, next) => {
   if (ctx.from) {
@@ -128,7 +126,7 @@ bot.use(async (ctx, next) => {
 });
 
 // ==========================================
-// 4. الأوامر الأساسية والأزرار
+// 4. الأوامر الأساسية
 // ==========================================
 bot.start((ctx) => {
   ctx.telegram.setMyCommands([{ command: 'start', description: '🏠 القائمة الرئيسية والبدء' }]).catch(() => {});
@@ -140,12 +138,10 @@ bot.action('back_home', (ctx) => sendMainMenu(ctx, true));
 // ==========================================
 // 5. التنقل بين المواد والمحاضرات
 // ==========================================
-// عرض المواد لأي تيرم ديناميكي
 bot.action(/sem_2_(.+)/, async (ctx) => {
   const semId = ctx.match[1];
   const snapshot = await db.collection('materials').where('year', '==', '2').where('semester', '==', semId).get();
   
-  // جلب اسم التيرم من الكاش
   const semData = cache.semesters.find(s => s.id === semId);
   const semName = semData ? semData.name : 'هذا الفصل الدراسي';
 
@@ -174,7 +170,6 @@ bot.action(/sem_2_(.+)/, async (ctx) => {
 
 bot.action('subject_maintenance', (ctx) => ctx.answerCbQuery('🛠 هذه المادة تحت التحديث حالياً، جرب لاحقاً!', { show_alert: true }));
 
-// عرض المحاضرات داخل المادة
 bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
   const semId = ctx.match[1];
   const refDocId = ctx.match[2];
@@ -199,7 +194,7 @@ bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
 });
 
 // ==========================================
-// 6. فتح تفاصيل المحاضرة (ملف، أسئلة، ملخص)
+// 6. فتح تفاصيل المحاضرة وإرسال الملف
 // ==========================================
 bot.action(/openlec_(.+)/, async (ctx) => {
   const docId = ctx.match[1];
@@ -233,7 +228,7 @@ bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
   const docId = ctx.match[2];
   
   const doc = await db.collection('materials').doc(docId).get();
-  if (!doc.exists) return ctx.answerCbQuery('الملف غير متاح');
+  if (!doc.exists) return ctx.answerCbQuery('الملف غير متاح', { show_alert: true });
   const data = doc.data();
 
   let msgId;
@@ -243,16 +238,20 @@ bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
 
   if (!msgId) return ctx.answerCbQuery('⚠️ هذا المرفق غير متوفر حالياً', { show_alert: true });
 
+  // 👈 تم التعديل هنا: نرد على زر التيليجرام فوراً لفك التعليق قبل البدء في نقل الملف
+  ctx.answerCbQuery('⏳ جاري إرسال الملف...').catch(()=>{});
+
   try {
     await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, msgId);
-    ctx.answerCbQuery('✅ تم إرسال الملف');
   } catch (error) {
-    ctx.answerCbQuery('⚠️ تعذر إرسال الملف، تواصل مع المطور.', { show_alert: true });
+    console.error("Error sending file:", error);
+    // إرسال رسالة توضح الخطأ في حالة فشل الإرسال
+    ctx.reply('⚠️ تعذر إرسال الملف. تأكد من أن البوت مسؤول في قناة الملفات وأن رقم الرسالة صحيح.').catch(()=>{});
   }
 });
 
 // ==========================================
-// 7. نظام المفضلة הסريع (NoSQL)
+// 7. نظام المفضلة السريع
 // ==========================================
 bot.action(/fav_toggle_(.+)/, async (ctx) => {
   const docId = ctx.match[1];
