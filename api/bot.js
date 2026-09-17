@@ -194,15 +194,43 @@ bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
 });
 
 // ==========================================
-// 6. فتح تفاصيل المحاضرة وإرسال الملف
+// 6. فتح تفاصيل المحاضرة (ونظام التنظيف الذكي)
 // ==========================================
 bot.action(/openlec_(.+)/, async (ctx) => {
+  // فك تعليق الزر فوراً
+  ctx.answerCbQuery('⏳ جاري جلب التفاصيل...').catch(()=>{});
+  
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
-  if (!doc.exists) return ctx.answerCbQuery('المحاضرة غير متاحة');
+  const userId = ctx.from.id.toString();
+
+  // 👈 نظام الـ Lazy Cleanup (التنظيف الذكي للمفضلات الميتة)
+  if (!doc.exists) {
+    // 1. مسحها من فايربيز الخاص بالطالب
+    await db.collection('users').doc(userId).update({
+      [`favorites.${docId}`]: admin.firestore.FieldValue.delete()
+    }).catch(()=>{});
+
+    // 2. إرسال تنبيه في الشاشة
+    ctx.answerCbQuery('⚠️ عذراً، تم حذف هذه المحاضرة من المنصة وتمت إزالتها من مفضلتك تلقائياً!', { show_alert: true }).catch(()=>{});
+
+    // 3. مسح الزر الميت من الرسالة اللي قدام الطالب ديناميكياً
+    if (ctx.callbackQuery.message && ctx.callbackQuery.message.reply_markup) {
+      const currentKeyboard = ctx.callbackQuery.message.reply_markup.inline_keyboard;
+      // فلترة الأزرار عشان نشيل الزرار اللي الطالب داس عليه
+      const newKeyboard = currentKeyboard.filter(row => !row.some(btn => btn.callback_data === ctx.callbackQuery.data));
+      
+      // لو مسح الزرار خلى القائمة فاضية ومفيش غير زرار (الرجوع)
+      if (newKeyboard.length === 1 && newKeyboard[0][0].callback_data === 'back_home') {
+        ctx.editMessageText('⭐ لم يعد هناك ملفات هنا.', { parse_mode: 'HTML', reply_markup: { inline_keyboard: newKeyboard } }).catch(()=>{});
+      } else {
+        ctx.editMessageReplyMarkup({ inline_keyboard: newKeyboard }).catch(()=>{});
+      }
+    }
+    return;
+  }
   
   const data = doc.data();
-  const userId = ctx.from.id.toString();
   
   const userDoc = await db.collection('users').doc(userId).get();
   const favorites = userDoc.exists ? (userDoc.data().favorites || {}) : {};
@@ -219,17 +247,17 @@ bot.action(/openlec_(.+)/, async (ctx) => {
   buttons.push([Markup.button.callback('🔙 رجوع لقائمة المادة', `sub_${data.semester}_${docId}`)]);
 
   const text = `📌 <b>${data.lectureTitle || data.name}</b>\n📚 المادة: ${data.subjectName}\n\nاختر ما تريد عرضه:`;
-  await ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
-  ctx.answerCbQuery().catch(()=>{});
+  await ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
 });
 
-// 👈 إضافة زر الإشعار (الإذاعة) المفقود لحل المشكلة نهائياً
 bot.action(/get_(.+)/, async (ctx) => {
-  ctx.answerCbQuery('⏳ جاري جلب المحتوى...').catch(()=>{}); // فك تعليق الزر فوراً
+  ctx.answerCbQuery('⏳ جاري جلب المحتوى...').catch(()=>{}); 
   
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
-  if (!doc.exists) return ctx.reply('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه.').catch(()=>{});
+  
+  // نفس نظام التنظيف لزر الإذاعة لو حد داس عليه بعد ما الملف اتمسح
+  if (!doc.exists) return ctx.reply('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه بواسطة الإدارة.').catch(()=>{});
   
   const data = doc.data();
   const userId = ctx.from.id.toString();
@@ -246,7 +274,7 @@ bot.action(/get_(.+)/, async (ctx) => {
   if (contentRow.length > 0) buttons.push(contentRow);
 
   buttons.push([Markup.button.callback(isFav ? '❌ حذف من المفضلة' : '⭐ حفظ في المفضلة', `fav_toggle_${docId}`)]);
-  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', `back_home`)]); // رجوع للرئيسية لأننا أتينا من إشعار خارجي
+  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', `back_home`)]); 
 
   const text = `📌 <b>${data.lectureTitle || data.name}</b>\n📚 المادة: ${data.subjectName}\n\nاختر ما تريد عرضه:`;
   await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
@@ -267,7 +295,7 @@ bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
 
   if (!msgId) return ctx.answerCbQuery('⚠️ هذا المرفق غير متوفر حالياً', { show_alert: true });
 
-  ctx.answerCbQuery('⏳ جاري الإرسال...').catch(()=>{}); // الرد الفوري لفك تعليق زر التليجرام
+  ctx.answerCbQuery('⏳ جاري الإرسال...').catch(()=>{}); 
 
   try {
     await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, msgId);
@@ -284,7 +312,7 @@ bot.action(/fav_toggle_(.+)/, async (ctx) => {
   const userId = ctx.from.id.toString();
   
   const doc = await db.collection('materials').doc(docId).get();
-  if (!doc.exists) return ctx.answerCbQuery('حدث خطأ');
+  if (!doc.exists) return ctx.answerCbQuery('المحاضرة غير متوفرة حالياً.');
   
   const data = doc.data();
   const userRef = db.collection('users').doc(userId);
