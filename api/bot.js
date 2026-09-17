@@ -223,6 +223,35 @@ bot.action(/openlec_(.+)/, async (ctx) => {
   ctx.answerCbQuery().catch(()=>{});
 });
 
+// 👈 إضافة زر الإشعار (الإذاعة) المفقود لحل المشكلة نهائياً
+bot.action(/get_(.+)/, async (ctx) => {
+  ctx.answerCbQuery('⏳ جاري جلب المحتوى...').catch(()=>{}); // فك تعليق الزر فوراً
+  
+  const docId = ctx.match[1];
+  const doc = await db.collection('materials').doc(docId).get();
+  if (!doc.exists) return ctx.reply('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه.').catch(()=>{});
+  
+  const data = doc.data();
+  const userId = ctx.from.id.toString();
+  
+  const userDoc = await db.collection('users').doc(userId).get();
+  const favorites = userDoc.exists ? (userDoc.data().favorites || {}) : {};
+  const isFav = !!favorites[docId];
+
+  const buttons = [];
+  const contentRow = [];
+  if (data.fileMessageId || data.messageId) contentRow.push(Markup.button.callback('📄 الملف', `sendf_main_${docId}`));
+  if (data.questionsMessageId) contentRow.push(Markup.button.callback('📝 أسئلة', `sendf_ques_${docId}`));
+  if (data.summaryMessageId) contentRow.push(Markup.button.callback('📑 ملخص', `sendf_summ_${docId}`));
+  if (contentRow.length > 0) buttons.push(contentRow);
+
+  buttons.push([Markup.button.callback(isFav ? '❌ حذف من المفضلة' : '⭐ حفظ في المفضلة', `fav_toggle_${docId}`)]);
+  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', `back_home`)]); // رجوع للرئيسية لأننا أتينا من إشعار خارجي
+
+  const text = `📌 <b>${data.lectureTitle || data.name}</b>\n📚 المادة: ${data.subjectName}\n\nاختر ما تريد عرضه:`;
+  await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
+});
+
 bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
   const type = ctx.match[1];
   const docId = ctx.match[2];
@@ -238,14 +267,11 @@ bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
 
   if (!msgId) return ctx.answerCbQuery('⚠️ هذا المرفق غير متوفر حالياً', { show_alert: true });
 
-  // 👈 تم التعديل هنا: نرد على زر التيليجرام فوراً لفك التعليق قبل البدء في نقل الملف
-  ctx.answerCbQuery('⏳ جاري إرسال الملف...').catch(()=>{});
+  ctx.answerCbQuery('⏳ جاري الإرسال...').catch(()=>{}); // الرد الفوري لفك تعليق زر التليجرام
 
   try {
     await ctx.telegram.copyMessage(ctx.chat.id, CHANNEL_ID, msgId);
   } catch (error) {
-    console.error("Error sending file:", error);
-    // إرسال رسالة توضح الخطأ في حالة فشل الإرسال
     ctx.reply('⚠️ تعذر إرسال الملف. تأكد من أن البوت مسؤول في قناة الملفات وأن رقم الرسالة صحيح.').catch(()=>{});
   }
 });
