@@ -2,6 +2,13 @@
   "routes": [
     { "src": "/api/bot", "dest": "api/bot.js" },
     { "src": "/api/broadcast", "dest": "api/broadcast.js" },
+    { "src": "/api/schedule", "dest": "api/schedule.js" },
     { "src": "/(.*)", "dest": "public/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/schedule",
+      "schedule": "0 * * * *"
+    }
   ]
 }
