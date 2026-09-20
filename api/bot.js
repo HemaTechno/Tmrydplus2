@@ -69,22 +69,47 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
   return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
 }
 
-function sendMainMenu(ctx, isEdit = false) {
+// تعديل القائمة الرئيسية لتصبح Reply Keyboard (كيبورد سفلي)
+function sendMainMenu(ctx, deleteOld = false) {
   const buttons = [];
-  
   cache.semesters.forEach(sem => {
-    if (sem.isActive) {
-      buttons.push([Markup.button.callback(`📖 ${sem.name}`, `sem_2_${sem.id}`)]);
-    }
+    if (sem.isActive) buttons.push(`📖 ${sem.name}`);
   });
 
-  buttons.push([Markup.button.callback('⭐ ملفاتي المحفوظة (المفضلة)', 'view_favorites')]);
-  buttons.push([Markup.button.url('👨‍💻 تواصل مع المطور', DEV_LINK)]);
-  
+  const keyboardRows = [];
+  for (let i = 0; i < buttons.length; i += 2) {
+    keyboardRows.push(buttons.slice(i, i + 2));
+  }
+
+  keyboardRows.push(['⭐ ملفاتي المحفوظة (المفضلة)']);
+  keyboardRows.push(['👨‍💻 تواصل مع المطور']);
+
   const text = '🎓 <b>أهلاً بك في المنصة!</b>\n\nاختر من القائمة أدناه للمتابعة:';
   
-  if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
-  return ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
+  if (deleteOld && ctx.callbackQuery) {
+    ctx.deleteMessage().catch(()=>{});
+  }
+  
+  return ctx.reply(text, { parse_mode: 'HTML', ...Markup.keyboard(keyboardRows).resize() });
+}
+
+async function handleViewFavorites(ctx) {
+  const userDoc = await db.collection('users').doc(ctx.from.id.toString()).get();
+  const favorites = userDoc.exists ? (userDoc.data().favorites || {}) : {};
+  const favKeys = Object.keys(favorites);
+
+  if (favKeys.length === 0) {
+    return ctx.reply('⭐ المفضلة فارغة!\nيمكنك حفظ المحاضرات من داخل تفاصيل كل محاضرة.');
+  }
+
+  const buttons = [];
+  for (const docId of favKeys) {
+    const data = favorites[docId];
+    buttons.push([Markup.button.callback(`📄 ${data.subjectName} - ${data.lectureTitle}`, `openlec_${docId}`)]);
+  }
+  buttons.push([Markup.button.callback('❌ إغلاق', 'delete_msg')]);
+
+  return ctx.reply('⭐ <b>ملفاتك المحفوظة:</b>', { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
 }
 
 // ==========================================
@@ -126,50 +151,85 @@ bot.use(async (ctx, next) => {
 });
 
 // ==========================================
-// 4. الأوامر الأساسية
+// 4. الأوامر الأساسية واستقبال النصوص
 // ==========================================
 bot.start((ctx) => {
   ctx.telegram.setMyCommands([{ command: 'start', description: '🏠 القائمة الرئيسية والبدء' }]).catch(() => {});
   return sendMainMenu(ctx);
 });
+
 bot.action('check_sub', (ctx) => { ctx.answerCbQuery('✅ تم التحقق بنجاح').catch(()=>{}); return sendMainMenu(ctx, true); });
+bot.action('delete_msg', (ctx) => ctx.deleteMessage().catch(()=>{}));
+// دعم رجعي لأي زر قديم يحمل back_home
 bot.action('back_home', (ctx) => sendMainMenu(ctx, true));
 
-// ==========================================
-// 5. التنقل بين المواد والمحاضرات
-// ==========================================
-bot.action(/sem_2_(.+)/, async (ctx) => {
-  const semId = ctx.match[1];
-  const snapshot = await db.collection('materials').where('year', '==', '2').where('semester', '==', semId).get();
-  
-  const semData = cache.semesters.find(s => s.id === semId);
-  const semName = semData ? semData.name : 'هذا الفصل الدراسي';
+// معالجة اختيارات لوحة المفاتيح السفلية (Reply Keyboard)
+bot.on('text', async (ctx) => {
+  const text = ctx.message.text;
 
-  if (snapshot.empty) {
-    return ctx.editMessageText(`لا توجد مواد مضافة حالياً في (${semName}).`, Markup.inlineKeyboard([[Markup.button.callback('🏠 رجوع', 'back_home')]]));
+  // 1. الأوامر الثابتة
+  if (text === '🏠 القائمة الرئيسية') return sendMainMenu(ctx);
+  if (text === '👨‍💻 تواصل مع المطور') return ctx.reply(`👨‍💻 للتواصل مع المطور:\n${DEV_LINK}`, { disable_web_page_preview: true });
+  if (text === '⭐ ملفاتي المحفوظة (المفضلة)') return handleViewFavorites(ctx);
+
+  // 2. التحقق إذا كان النص فصلاً دراسياً
+  const sem = cache.semesters.find(s => `📖 ${s.name}` === text);
+  if (sem) {
+    const snapshot = await db.collection('materials').where('year', '==', '2').where('semester', '==', sem.id).get();
+    
+    if (snapshot.empty) {
+      return ctx.reply(`لا توجد مواد مضافة حالياً في (${sem.name}).`);
+    }
+
+    const subjectsSet = new Set();
+    snapshot.forEach((doc) => subjectsSet.add(doc.data().subjectName || doc.data().name));
+    
+    // تقسيم المواد لصفين لتشبه الصورة تماماً
+    const subjectsArray = Array.from(subjectsSet);
+    const keyboardRows = [];
+    for (let i = 0; i < subjectsArray.length; i += 2) {
+      keyboardRows.push(subjectsArray.slice(i, i + 2));
+    }
+    keyboardRows.push(['🏠 القائمة الرئيسية']);
+
+    return ctx.reply(`📚 <b>مواد ${sem.name}:</b>\nاختر المادة من الكيبورد بالأسفل:`, { 
+      parse_mode: 'HTML', 
+      ...Markup.keyboard(keyboardRows).resize() 
+    });
   }
 
-  const subjectsMap = new Map();
-  snapshot.forEach((doc) => {
-    const data = doc.data();
-    subjectsMap.set(data.subjectName || data.name, doc.id);
-  });
+  // 3. التحقق إذا كان النص اسم مادة
+  const snapshot = await db.collection('materials')
+    .where('year', '==', '2')
+    .where('subjectName', '==', text)
+    .get();
 
-  const buttons = [];
-  subjectsMap.forEach((docId, subjectName) => {
-    const isSubMaintenance = cache.subjectMaintenance[subjectName] === true;
-    const btnText = isSubMaintenance ? `🛠 ${subjectName} (تحديث)` : `📚 ${subjectName}`;
-    const btnData = isSubMaintenance ? 'subject_maintenance' : `sub_${semId}_${docId}`;
-    buttons.push([Markup.button.callback(btnText, btnData)]);
-  });
-  
-  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]);
-  await ctx.editMessageText(`📚 <b>مواد ${semName}:</b>\nاختر المادة:`, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
-  ctx.answerCbQuery().catch(()=>{});
+  if (!snapshot.empty) {
+    const isSubMaintenance = cache.subjectMaintenance[text] === true;
+    if (isSubMaintenance) {
+      return ctx.reply('🛠 هذه المادة تحت التحديث حالياً، جرب لاحقاً!');
+    }
+
+    const buttons = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const icon = data.categoryIcon || '📄';
+      buttons.push([Markup.button.callback(`${icon} ${data.lectureTitle || data.name}`, `openlec_${doc.id}`)]);
+    });
+
+    buttons.push([Markup.button.callback('❌ إغلاق', 'delete_msg')]);
+
+    return ctx.reply(`📑 محتوى مادة: <b>${text}</b>\nاختر المحاضرة:`, { 
+      parse_mode: 'HTML', 
+      ...Markup.inlineKeyboard(buttons) 
+    });
+  }
 });
 
-bot.action('subject_maintenance', (ctx) => ctx.answerCbQuery('🛠 هذه المادة تحت التحديث حالياً، جرب لاحقاً!', { show_alert: true }));
 
+// ==========================================
+// 5. التنقل بين تفاصيل المحاضرات (الشفافة)
+// ==========================================
 bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
   const semId = ctx.match[1];
   const refDocId = ctx.match[2];
@@ -187,41 +247,31 @@ bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
     buttons.push([Markup.button.callback(`${icon} ${data.lectureTitle || data.name}`, `openlec_${doc.id}`)]);
   });
 
-  buttons.push([Markup.button.callback('⬅️ رجوع', `sem_2_${semId}`), Markup.button.callback('🏠 الرئيسية', 'back_home')]);
+  buttons.push([Markup.button.callback('❌ إغلاق', 'delete_msg')]);
 
   await ctx.editMessageText(`📑 محتوى مادة: <b>${subjectName}</b>\nاختر المحاضرة:`, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
   ctx.answerCbQuery().catch(()=>{});
 });
 
-// ==========================================
-// 6. فتح تفاصيل المحاضرة (ونظام التنظيف الذكي)
-// ==========================================
 bot.action(/openlec_(.+)/, async (ctx) => {
-  // فك تعليق الزر فوراً
   ctx.answerCbQuery('⏳ جاري جلب التفاصيل...').catch(()=>{});
   
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
   const userId = ctx.from.id.toString();
 
-  // 👈 نظام الـ Lazy Cleanup (التنظيف الذكي للمفضلات الميتة)
   if (!doc.exists) {
-    // 1. مسحها من فايربيز الخاص بالطالب
     await db.collection('users').doc(userId).update({
       [`favorites.${docId}`]: admin.firestore.FieldValue.delete()
     }).catch(()=>{});
 
-    // 2. إرسال تنبيه في الشاشة
     ctx.answerCbQuery('⚠️ عذراً، تم حذف هذه المحاضرة من المنصة وتمت إزالتها من مفضلتك تلقائياً!', { show_alert: true }).catch(()=>{});
 
-    // 3. مسح الزر الميت من الرسالة اللي قدام الطالب ديناميكياً
     if (ctx.callbackQuery.message && ctx.callbackQuery.message.reply_markup) {
       const currentKeyboard = ctx.callbackQuery.message.reply_markup.inline_keyboard;
-      // فلترة الأزرار عشان نشيل الزرار اللي الطالب داس عليه
       const newKeyboard = currentKeyboard.filter(row => !row.some(btn => btn.callback_data === ctx.callbackQuery.data));
       
-      // لو مسح الزرار خلى القائمة فاضية ومفيش غير زرار (الرجوع)
-      if (newKeyboard.length === 1 && newKeyboard[0][0].callback_data === 'back_home') {
+      if (newKeyboard.length === 1 && newKeyboard[0][0].callback_data === 'delete_msg') {
         ctx.editMessageText('⭐ لم يعد هناك ملفات هنا.', { parse_mode: 'HTML', reply_markup: { inline_keyboard: newKeyboard } }).catch(()=>{});
       } else {
         ctx.editMessageReplyMarkup({ inline_keyboard: newKeyboard }).catch(()=>{});
@@ -256,7 +306,6 @@ bot.action(/get_(.+)/, async (ctx) => {
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
   
-  // نفس نظام التنظيف لزر الإذاعة لو حد داس عليه بعد ما الملف اتمسح
   if (!doc.exists) return ctx.reply('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه بواسطة الإدارة.').catch(()=>{});
   
   const data = doc.data();
@@ -274,7 +323,7 @@ bot.action(/get_(.+)/, async (ctx) => {
   if (contentRow.length > 0) buttons.push(contentRow);
 
   buttons.push([Markup.button.callback(isFav ? '❌ حذف من المفضلة' : '⭐ حفظ في المفضلة', `fav_toggle_${docId}`)]);
-  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', `back_home`)]); 
+  buttons.push([Markup.button.callback('🔙 رجوع لقائمة المادة', `sub_${data.semester}_${docId}`)]); 
 
   const text = `📌 <b>${data.lectureTitle || data.name}</b>\n📚 المادة: ${data.subjectName}\n\nاختر ما تريد عرضه:`;
   await ctx.reply(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(()=>{});
@@ -305,7 +354,7 @@ bot.action(/sendf_(main|ques|summ)_(.+)/, async (ctx) => {
 });
 
 // ==========================================
-// 7. نظام المفضلة السريع
+// 6. نظام المفضلة
 // ==========================================
 bot.action(/fav_toggle_(.+)/, async (ctx) => {
   const docId = ctx.match[1];
@@ -337,26 +386,6 @@ bot.action(/fav_toggle_(.+)/, async (ctx) => {
     row.map(btn => btn.callback_data === ctx.callbackQuery.data ? { ...btn, text: newText } : btn)
   );
   await ctx.editMessageReplyMarkup({ inline_keyboard: newKeyboard }).catch(()=>{});
-});
-
-bot.action('view_favorites', async (ctx) => {
-  const userDoc = await db.collection('users').doc(ctx.from.id.toString()).get();
-  const favorites = userDoc.exists ? (userDoc.data().favorites || {}) : {};
-  const favKeys = Object.keys(favorites);
-
-  if (favKeys.length === 0) {
-    return ctx.editMessageText('⭐ المفضلة فارغة!\nيمكنك حفظ المحاضرات من داخل تفاصيل كل محاضرة.', Markup.inlineKeyboard([[Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]]));
-  }
-
-  const buttons = [];
-  for (const docId of favKeys) {
-    const data = favorites[docId];
-    buttons.push([Markup.button.callback(`📄 ${data.subjectName} - ${data.lectureTitle}`, `openlec_${docId}`)]);
-  }
-  buttons.push([Markup.button.callback('🏠 القائمة الرئيسية', 'back_home')]);
-
-  await ctx.editMessageText('⭐ <b>ملفاتك المحفوظة:</b>', { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) });
-  ctx.answerCbQuery().catch(()=>{});
 });
 
 bot.catch((err, ctx) => {
