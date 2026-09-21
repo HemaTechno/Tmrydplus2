@@ -3,7 +3,7 @@ const { db } = require('../firebaseAdmin');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY;
-const CRON_SECRET = process.env.CRON_SECRET || ADMIN_SECRET_KEY; // لتبسيط الإعدادات
+const CRON_SECRET = process.env.CRON_SECRET || ADMIN_SECRET_KEY; 
 
 module.exports = async (req, res) => {
   try {
@@ -30,34 +30,24 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 2️⃣ حالة الإرسال التلقائي عبر Vercel Cron Job (تعمل كل ساعة وتفحص الوقت)
+    // 2️⃣ حالة الإرسال التلقائي عبر Vercel Cron Job (مرة واحدة يومياً 8 مساءً)
     if (req.method === 'GET') {
-      // حماية رابط الـ Cron
       if (req.headers.authorization !== `Bearer ${CRON_SECRET}`) {
         return res.status(401).json({ error: 'غير مصرح لك' });
       }
 
-      // جلب الساعة الحالية بتوقيت مصر لمعرفة هل حان وقت الإرسال؟
       const egyptTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
-      const currentHour = egyptTime.getHours().toString();
+      const tomorrow = new Date(egyptTime.getTime() + (24 * 60 * 60 * 1000));
+      const tomorrowIndex = tomorrow.getDay().toString();
 
-      // لو الساعة الحالية بتوقيت مصر تساوي الساعة اللي الأدمن محددها
-      if (currentHour === config.sendTime) {
-        // تحديد يوم الغد (0 = الأحد، 1 = الإثنين ...)
-        const tomorrow = new Date(egyptTime.getTime() + (24 * 60 * 60 * 1000));
-        const tomorrowIndex = tomorrow.getDay().toString();
-
-        const content = config.days && config.days[tomorrowIndex];
-        
-        if (content && content.trim() !== "") {
-          const message = `📢 📅 <b>جدول محاضرات الغد</b> 📅 📢\n\n${content}\n\n✨ <i>تمنياتنا لكم بالتوفيق والنجاح!</i> 🎓`;
-          await bot.telegram.sendMessage(config.channelId, message, { parse_mode: 'HTML' });
-          return res.status(200).json({ success: true, message: 'تم إرسال جدول الغد بنجاح' });
-        } else {
-          return res.status(200).json({ success: true, message: 'لا يوجد جدول مسجل للغد، تم التخطي.' });
-        }
+      const content = config.days && config.days[tomorrowIndex];
+      
+      if (content && content.trim() !== "") {
+        const message = `📢 📅 <b>جدول محاضرات الغد</b> 📅 📢\n\n${content}\n\n✨ <i>تمنياتنا لكم بالتوفيق والنجاح!</i> 🎓`;
+        await bot.telegram.sendMessage(config.channelId, message, { parse_mode: 'HTML' });
+        return res.status(200).json({ success: true, message: 'تم إرسال جدول الغد بنجاح' });
       } else {
-        return res.status(200).json({ success: true, message: 'لم يحن وقت الإرسال بعد.' });
+        return res.status(200).json({ success: true, message: 'لا يوجد جدول مسجل للغد، تم التخطي.' });
       }
     }
 
