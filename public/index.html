@@ -101,14 +101,13 @@
       </div>
     </div>
 
-    <!-- ================= القسم 2: الجدول (الجديد) ================= -->
+    <!-- ================= القسم 2: الجدول ================= -->
     <div id="tab-schedule" class="tab-content space-y-6">
       <div class="glass-panel rounded-3xl p-6 sm:p-7 border border-purple-500/20 relative">
         <h2 class="text-lg font-bold text-white flex items-center gap-2.5 mb-6 pb-4 border-b border-white/10">
           <span class="p-2 rounded-xl bg-purple-500/20 text-purple-400 text-sm"><i class="fa-solid fa-calendar-day"></i></span> إدارة جدول المحاضرات الآلي
         </h2>
         
-        <!-- إعدادات القناة والوقت -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label class="block text-xs font-bold text-slate-300 mb-2">ID القناة لإرسال الجدول:</label>
@@ -128,7 +127,6 @@
 
         <hr class="border-white/10 mb-6">
 
-        <!-- إعدادات محتوى الأيام -->
         <div class="mb-4">
           <label class="block text-xs font-bold text-slate-300 mb-2">اختر اليوم لتعديل جدوله:</label>
           <select id="schDaySelect" onchange="changeScheduleDay()" class="glass-input w-full md:w-1/2 rounded-xl p-3 text-sm outline-none cursor-pointer font-bold text-indigo-300">
@@ -213,20 +211,52 @@
         <form id="addMaterialForm" class="space-y-4">
           <input type="hidden" id="editDocId" value="">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label class="block text-xs font-bold text-slate-300 mb-2">الفصل الدراسي:</label><select id="semSelect" onchange="updateSubjectsDropdown()" required class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer"></select></div>
-            <div><label class="block text-xs font-bold text-slate-300 mb-2">النوع:</label><select id="categorySelect" class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer"><option value="📑|شيت ومحاضرة">📑 شيت ومحاضرة نظري</option><option value="🧪|سكشن عملي">🧪 سكشن عملي</option><option value="🎙|تسجيل صوتي">🎙 تسجيل صوتي</option></select></div>
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">الفصل الدراسي:</label>
+              <select id="semSelect" onchange="updateSubjectsDropdown()" required class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-2">النوع:</label>
+              <select id="categorySelect" class="glass-input w-full rounded-xl p-3 text-sm outline-none cursor-pointer">
+                <option value="📑|شيت ومحاضرة">📑 شيت ومحاضرة نظري</option>
+                <option value="🧪|سكشن عملي">🧪 سكشن عملي</option>
+                <option value="🎙|تسجيل صوتي">🎙 تسجيل صوتي</option>
+              </select>
+            </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-300 mb-2">اسم المادة:</label>
-            <div class="flex gap-2"><select id="existingSubjects" onchange="onSelectExistingSubject()" class="glass-input w-1/3 rounded-xl p-3 text-sm"></select><input type="text" id="subjectName" required placeholder="مثال: تمريض باطني" class="glass-input w-2/3 rounded-xl p-3 text-sm placeholder-slate-500"></div>
+            <div class="flex gap-2">
+              <select id="existingSubjects" onchange="onSelectExistingSubject()" class="glass-input w-1/3 rounded-xl p-3 text-sm"></select>
+              <input type="text" id="subjectName" required placeholder="مثال: تمريض باطني" class="glass-input w-2/3 rounded-xl p-3 text-sm placeholder-slate-500">
+            </div>
           </div>
-          <div><label class="block text-xs font-bold text-slate-300 mb-2">عنوان الزر:</label><input type="text" id="lectureTitle" required placeholder="مثال: المحاضرة 1" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500"></div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-2">عنوان الزر:</label>
+            <input type="text" id="lectureTitle" required placeholder="مثال: المحاضرة 1" class="glass-input w-full rounded-xl p-3 text-sm placeholder-slate-500">
+          </div>
+          
           <div class="glass-panel-subtle p-4 rounded-xl border border-indigo-500/20">
-            <label class="block text-sm font-bold text-indigo-300 mb-3 border-b border-indigo-500/20 pb-2"><i class="fa-solid fa-paperclip ml-1"></i> أرقام الرسائل في القناة</label>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div><input type="number" id="fileMessageId" placeholder="رقم الملف الأساسي" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono"></div>
-              <div><input type="number" id="questionsMessageId" placeholder="رقم الأسئلة (اختياري)" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono"></div>
-              <div><input type="number" id="summaryMessageId" placeholder="رقم الملخص (اختياري)" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono"></div>
+            <label class="block text-sm font-bold text-indigo-300 mb-3 border-b border-indigo-500/20 pb-2">
+              <i class="fa-solid fa-paperclip ml-1"></i> أرقام الرسائل في القناة والروابط
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (عربي)</label>
+                <input type="number" id="arMessageId" placeholder="مثال: 154" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (إنجليزي)</label>
+                <input type="number" id="enMessageId" placeholder="مثال: 155" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400">رقم رسالة الملخص</label>
+                <input type="number" id="summaryMessageId" placeholder="مثال: 156" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-400">رابط الأسئلة (فورم/موقع)</label>
+                <input type="url" id="questionsLink" placeholder="https://..." class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1 text-left" dir="ltr">
+              </div>
             </div>
           </div>
           <button type="submit" id="saveMaterialBtn" class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2"><i class="fa-solid fa-cloud-arrow-up"></i><span>حفظ وإضافة</span></button>
@@ -240,7 +270,7 @@
         </div>
         <div class="overflow-x-auto rounded-2xl border border-white/5">
           <table class="w-full text-sm text-right border-collapse" id="mainTable">
-            <thead><tr class="bg-slate-900/80 text-slate-300 text-xs border-b border-white/10"><th class="p-4">التيرم</th><th class="p-4">المادة</th><th class="p-4">العنوان</th><th class="p-4 text-center">المرفقات</th><th class="p-4 text-center">إجراءات</th></tr></thead>
+            <thead><tr class="bg-slate-900/80 text-slate-300 text-xs border-b border-white/10"><th class="p-4">التيرم</th><th class="p-4">المادة</th><th class="p-4">العنوان</th><th class="p-4 text-center">المرفقات المتوفرة</th><th class="p-4 text-center">إجراءات</th></tr></thead>
             <tbody id="materialsTable" class="divide-y divide-white/5"></tbody>
           </table>
         </div>
@@ -309,7 +339,6 @@
       return key;
     }
 
-    // ================= منطق الجدول (الجديد) ================= //
     let scheduleConfig = { channelId: '', sendTime: '20', days: {} };
 
     function loadSchedule() {
@@ -332,12 +361,10 @@
     async function saveScheduleSettings() {
       const adminKey = await promptAdminKey('لتأكيد حفظ إعدادات الجدول');
       if(!adminKey) return;
-
       const day = document.getElementById('schDaySelect').value;
       scheduleConfig.channelId = document.getElementById('schChannel').value.trim();
       scheduleConfig.sendTime = document.getElementById('schTime').value;
       scheduleConfig.days[day] = document.getElementById('schContent').value.trim();
-
       try {
         await db.collection('settings').doc('scheduleConfig').set(scheduleConfig, { merge: true });
         Toast.fire({ icon: 'success', title: 'تم حفظ الجدول بنجاح!' });
@@ -371,7 +398,6 @@
       finally { btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> إرسال الآن للقناة'; }
     }
 
-    // ================= التيرمات والمحاضرات (نفس الكود السابق مع اختصارات برمجية) =================
     function loadSemesters() {
       db.collection("semesters").orderBy("order", "asc").onSnapshot(snap => {
         allSemestersCache = []; document.getElementById("semestersTbody").innerHTML = "";
@@ -389,22 +415,100 @@
     async function deleteSemester(id) { const r = await Swal.fire({title:'حذف؟',icon:'warning',showCancelButton:true}); if(r.isConfirmed){const k = await promptAdminKey('للتأكيد'); if(k) await db.collection("semesters").doc(id).delete(); Toast.fire({icon:'success',title:'حذف!'});} }
 
     function loadMaterials() { db.collection("materials").orderBy("createdAt", "desc").onSnapshot((snap) => { allMaterialsCache = []; document.getElementById("statTotalMaterials").innerText = snap.size; snap.forEach((doc) => allMaterialsCache.push({ id: doc.id, ...doc.data() })); renderMaterialsTable(); updateSubjectsDropdown(); }); }
+    
     function renderMaterialsTable() {
         const t = document.getElementById("materialsTable"); t.innerHTML = "";
         allMaterialsCache.forEach((item) => {
           const sem = allSemestersCache.find(s => s.id === item.semester);
-          t.innerHTML += `<tr class="border-b border-white/5 hover:bg-white/[0.03]"><td class="p-4 text-[10px] text-indigo-300 font-bold">${sem?sem.name:item.semester}</td><td class="p-4 font-bold text-white text-xs">${item.subjectName || item.name}</td><td class="p-4 text-slate-200 text-xs">${item.lectureTitle || item.name}</td><td class="p-4 text-center text-[10px]">${item.fileMessageId?'📄':''} ${item.questionsMessageId?'📝':''} ${item.summaryMessageId?'📑':''}</td><td class="p-4 text-center"><button onclick="editMaterial('${item.id}')" class="text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded text-xs mr-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteMaterial('${item.id}')" class="text-rose-400 bg-rose-500/10 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+          t.innerHTML += `
+          <tr class="border-b border-white/5 hover:bg-white/[0.03]">
+            <td class="p-4 text-[10px] text-indigo-300 font-bold">${sem?sem.name:item.semester}</td>
+            <td class="p-4 font-bold text-white text-xs">${item.subjectName || item.name}</td>
+            <td class="p-4 text-slate-200 text-xs">${item.lectureTitle || item.name}</td>
+            <td class="p-4 text-center text-lg space-x-1 rtl:space-x-reverse">
+                ${item.arMessageId ? '<span title="شرح عربي">🇪🇬</span>' : ''} 
+                ${item.enMessageId ? '<span title="شرح إنجليزي">🇬🇧</span>' : ''} 
+                ${item.questionsLink ? '<span title="أسئلة">📝</span>' : ''} 
+                ${item.summaryMessageId ? '<span title="ملخص">📑</span>' : ''}
+            </td>
+            <td class="p-4 text-center">
+                <button onclick="editMaterial('${item.id}')" class="text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded text-xs mr-1"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteMaterial('${item.id}')" class="text-rose-400 bg-rose-500/10 px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+            </td>
+          </tr>`;
         });
     }
+
     function updateSubjectsDropdown() { const sem = document.getElementById("semSelect").value, sel = document.getElementById("existingSubjects"); sel.innerHTML = '<option value="">-- متاح --</option>'; const s = new Set(); allMaterialsCache.forEach(i => { if (i.semester === sem && (i.subjectName||i.name)) s.add(i.subjectName||i.name); }); s.forEach(n => sel.innerHTML += `<option value="${n}" class="bg-slate-900">${n}</option>`); }
     function onSelectExistingSubject() { const v = document.getElementById("existingSubjects").value; if(v) document.getElementById("subjectName").value = v; }
-    document.getElementById("addMaterialForm").addEventListener("submit", async (e) => { e.preventDefault(); const key=await promptAdminKey('لتأكيد الرفع'); if(!key)return; const docId=document.getElementById("editDocId").value, s=document.getElementById("semSelect").value, n=document.getElementById("subjectName").value, l=document.getElementById("lectureTitle").value, f=document.getElementById("fileMessageId").value, q=document.getElementById("questionsMessageId").value, sm=document.getElementById("summaryMessageId").value, c=document.getElementById("categorySelect").value.split('|'); if(!f&&!q&&!sm) return Swal.fire('تنبيه','ضع رقم رسالة واحد عالأقل','warning'); try{ const data={year:"2",semester:s,subjectName:n,lectureTitle:l,name:l,categoryIcon:c[0],category:c[1],updatedAt:new Date().toISOString()}; if(f)data.fileMessageId=parseInt(f); if(q)data.questionsMessageId=parseInt(q); if(sm)data.summaryMessageId=parseInt(sm); if(docId){data.messageId=firebase.firestore.FieldValue.delete(); await db.collection("materials").doc(docId).update(data); Toast.fire({icon:'success',title:'تم التعديل'});}else{data.createdAt=new Date().toISOString(); await db.collection("materials").add(data); Toast.fire({icon:'success',title:'تمت الإضافة'});} resetForm(); }catch(err){Swal.fire('خطأ',err.message,'error');} });
-    function editMaterial(id) { switchTab('materials'); const i = allMaterialsCache.find(m => m.id === id); if(!i)return; document.getElementById("editDocId").value=id; document.getElementById("semSelect").value=i.semester; updateSubjectsDropdown(); document.getElementById("subjectName").value=i.subjectName||i.name; document.getElementById("lectureTitle").value=i.lectureTitle||i.name; document.getElementById("fileMessageId").value=i.fileMessageId||""; document.getElementById("questionsMessageId").value=i.questionsMessageId||""; document.getElementById("summaryMessageId").value=i.summaryMessageId||""; document.getElementById("formTitle").innerHTML='تعديل المحاضرة'; document.getElementById("cancelEditBtn").classList.remove("hidden"); window.scrollTo(0,0); }
+    
+    document.getElementById("addMaterialForm").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        const key = await promptAdminKey('لتأكيد الرفع'); 
+        if(!key) return; 
+
+        const docId = document.getElementById("editDocId").value;
+        const s = document.getElementById("semSelect").value;
+        const n = document.getElementById("subjectName").value;
+        const l = document.getElementById("lectureTitle").value;
+        const c = document.getElementById("categorySelect").value.split('|');
+        
+        const ar = document.getElementById("arMessageId").value;
+        const en = document.getElementById("enMessageId").value;
+        const summ = document.getElementById("summaryMessageId").value;
+        const qLink = document.getElementById("questionsLink").value;
+
+        if(!ar && !en && !summ && !qLink) {
+            return Swal.fire('تنبيه', 'يجب إدخال مرفق واحد على الأقل', 'warning');
+        }
+
+        try { 
+            const data = { year:"2", semester: s, subjectName: n, lectureTitle: l, name: l, categoryIcon:c[0], category:c[1], updatedAt: new Date().toISOString() }; 
+            
+            if(ar) data.arMessageId = parseInt(ar); else data.arMessageId = firebase.firestore.FieldValue.delete();
+            if(en) data.enMessageId = parseInt(en); else data.enMessageId = firebase.firestore.FieldValue.delete();
+            if(summ) data.summaryMessageId = parseInt(summ); else data.summaryMessageId = firebase.firestore.FieldValue.delete();
+            if(qLink) data.questionsLink = qLink; else data.questionsLink = firebase.firestore.FieldValue.delete();
+
+            if(docId) { 
+                await db.collection("materials").doc(docId).update(data); 
+                Toast.fire({icon:'success',title:'تم التعديل'});
+            } else { 
+                data.createdAt = new Date().toISOString(); 
+                await db.collection("materials").add(data); 
+                Toast.fire({icon:'success',title:'تمت الإضافة'});
+            } 
+            resetForm(); 
+        } catch(err) {
+            Swal.fire('خطأ', err.message, 'error');
+        } 
+    });
+
+    function editMaterial(id) { 
+        switchTab('materials'); 
+        const i = allMaterialsCache.find(m => m.id === id); 
+        if(!i) return; 
+        
+        document.getElementById("editDocId").value = id; 
+        document.getElementById("semSelect").value = i.semester; 
+        updateSubjectsDropdown(); 
+        document.getElementById("subjectName").value = i.subjectName || i.name; 
+        document.getElementById("lectureTitle").value = i.lectureTitle || i.name; 
+        
+        document.getElementById("arMessageId").value = i.arMessageId || ""; 
+        document.getElementById("enMessageId").value = i.enMessageId || ""; 
+        document.getElementById("summaryMessageId").value = i.summaryMessageId || ""; 
+        document.getElementById("questionsLink").value = i.questionsLink || ""; 
+        
+        document.getElementById("formTitle").innerHTML = 'تعديل المحاضرة'; 
+        document.getElementById("cancelEditBtn").classList.remove("hidden"); 
+        window.scrollTo(0,0); 
+    }
+
     function resetForm() { document.getElementById("editDocId").value=""; document.getElementById("addMaterialForm").reset(); document.getElementById("cancelEditBtn").classList.add("hidden"); document.getElementById("formTitle").innerHTML='إضافة محاضرة'; }
     async function deleteMaterial(id) { const r=await Swal.fire({title:'تأكيد؟',icon:'warning',showCancelButton:true}); if(r.isConfirmed) { await db.collection("materials").doc(id).delete(); Toast.fire({icon:'success',title:'حذف!'}); } }
     function filterTable() { const q = document.getElementById("tableSearch").value.toLowerCase(); document.querySelectorAll("#materialsTable tr").forEach(r => r.style.display = r.innerText.toLowerCase().includes(q)?"":"none"); }
 
-    // --- الإذاعة والطلاب ---
     document.getElementById("broadcastForm").addEventListener("submit", async (e) => { e.preventDefault(); const key=await promptAdminKey('تأكيد'); if(!key)return; const msg=document.getElementById("broadcastMsg").value, btn=document.getElementById("broadcastBtn"); btn.disabled=true; btn.innerHTML='جاري الإرسال...'; try{ const res=await fetch("/api/broadcast",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secretKey:key,message:msg})}); const data=await res.json(); if(res.ok){Swal.fire('تم',`أرسلت لـ ${data.sentCount}`,'success'); document.getElementById("broadcastMsg").value="";}else Swal.fire('خطأ',data.error,'error'); }catch(err){Swal.fire('خطأ','فشل السيرفر','error');}finally{btn.disabled=false; btn.innerHTML='إرسال الآن';} });
     function loadUsersData() { db.collection("users").orderBy("updatedAt","desc").onSnapshot(snap => { const t = document.getElementById("usersTbody"); t.innerHTML = ""; document.getElementById("statTotalUsers").innerText = snap.size; snap.forEach(doc => { const u = doc.data(), b = u.isBanned; t.innerHTML += `<tr class="border-b border-white/5"><td class="p-4 font-mono text-xs">${u.userId||doc.id}</td><td class="p-4 text-xs">${u.firstName||'بدون'}</td><td class="p-4 text-xs dir-ltr">${u.username?'@'+u.username:'-'}</td><td class="p-4 text-center">${b?'⛔ محظور':'🟢 نشط'}</td><td class="p-4 text-center"><button onclick="toggleUserBan('${doc.id}', ${b})" class="bg-indigo-500/10 px-3 py-1 rounded text-xs">${b?'فك حظر':'حظر'}</button></td></tr>`; }); }); }
     async function toggleUserBan(id, b) { const r=await Swal.fire({title:'تأكيد؟',icon:'warning',showCancelButton:true}); if(r.isConfirmed){const key=await promptAdminKey('تأكيد'); if(key){ await db.collection("users").doc(id).update({isBanned:!b}); Toast.fire({icon:'success',title:'تم!'}); }} }
