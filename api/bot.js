@@ -2,7 +2,6 @@ const { Telegraf, Markup } = require('telegraf');
 const admin = require('firebase-admin');
 const { db } = require('../firebaseAdmin');
 
-
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const CHANNEL_ID = process.env.CHANNEL_Y2 || process.env.FILES_CHANNEL_ID;
@@ -70,7 +69,6 @@ function sendSubscriptionPrompt(ctx, isEdit = false) {
   return ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
 }
 
-// تعديل القائمة الرئيسية لتصبح Reply Keyboard (كيبورد سفلي)
 function sendMainMenu(ctx, deleteOld = false) {
   const buttons = [];
   cache.semesters.forEach(sem => {
@@ -161,12 +159,14 @@ bot.start((ctx) => {
 
 bot.action('check_sub', (ctx) => { ctx.answerCbQuery('✅ تم التحقق بنجاح').catch(()=>{}); return sendMainMenu(ctx, true); });
 bot.action('delete_msg', (ctx) => ctx.deleteMessage().catch(()=>{}));
-// دعم رجعي لأي زر قديم يحمل back_home
 bot.action('back_home', (ctx) => sendMainMenu(ctx, true));
 
 // معالجة اختيارات لوحة المفاتيح السفلية (Reply Keyboard)
 bot.on('text', async (ctx) => {
   const text = ctx.message.text;
+  
+  // حماية الفايربيز من النصوص العشوائية الطويلة
+  if (!text || text.length > 80) return;
 
   // 1. الأوامر الثابتة
   if (text === '🏠 القائمة الرئيسية') return sendMainMenu(ctx);
@@ -185,7 +185,6 @@ bot.on('text', async (ctx) => {
     const subjectsSet = new Set();
     snapshot.forEach((doc) => subjectsSet.add(doc.data().subjectName || doc.data().name));
     
-    // تقسيم المواد لصفين لتشبه الصورة تماماً
     const subjectsArray = Array.from(subjectsSet);
     const keyboardRows = [];
     for (let i = 0; i < subjectsArray.length; i += 2) {
@@ -200,36 +199,39 @@ bot.on('text', async (ctx) => {
   }
 
   // 3. التحقق إذا كان النص اسم مادة
-  const snapshot = await db.collection('materials')
-    .where('year', '==', '2')
-    .where('subjectName', '==', text)
-    .get();
+  try {
+    const snapshot = await db.collection('materials')
+      .where('year', '==', '2')
+      .where('subjectName', '==', text)
+      .get();
 
-  if (!snapshot.empty) {
-    const isSubMaintenance = cache.subjectMaintenance[text] === true;
-    if (isSubMaintenance) {
-      return ctx.reply('🛠 هذه المادة تحت التحديث حالياً، جرب لاحقاً!');
+    if (!snapshot.empty) {
+      const isSubMaintenance = cache.subjectMaintenance[text] === true;
+      if (isSubMaintenance) {
+        return ctx.reply('🛠 هذه المادة تحت التحديث حالياً، جرب لاحقاً!');
+      }
+
+      const buttons = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const icon = data.categoryIcon || '📄';
+        buttons.push([Markup.button.callback(`${icon} ${data.lectureTitle || data.name}`, `openlec_${doc.id}`)]);
+      });
+
+      buttons.push([Markup.button.callback('❌ إغلاق', 'delete_msg')]);
+
+      return ctx.reply(`📑 محتوى مادة: <b>${text}</b>\nاختر المحاضرة:`, { 
+        parse_mode: 'HTML', 
+        ...Markup.inlineKeyboard(buttons) 
+      });
     }
-
-    const buttons = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const icon = data.categoryIcon || '📄';
-      buttons.push([Markup.button.callback(`${icon} ${data.lectureTitle || data.name}`, `openlec_${doc.id}`)]);
-    });
-
-    buttons.push([Markup.button.callback('❌ إغلاق', 'delete_msg')]);
-
-    return ctx.reply(`📑 محتوى مادة: <b>${text}</b>\nاختر المحاضرة:`, { 
-      parse_mode: 'HTML', 
-      ...Markup.inlineKeyboard(buttons) 
-    });
+  } catch (err) {
+    console.error('Error fetching subject:', err);
   }
 });
 
-
 // ==========================================
-// 5. التنقل بين تفاصيل المحاضرات (الشفافة)
+// 5. التنقل بين تفاصيل المحاضرات
 // ==========================================
 bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
   const semId = ctx.match[1];
@@ -255,17 +257,17 @@ bot.action(/sub_([^_]+)_(.+)/, async (ctx) => {
 });
 
 bot.action(/openlec_(.+)/, async (ctx) => {
-  ctx.answerCbQuery('⏳ جاري جلب التفاصيل...').catch(()=>{});
-  
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
   const userId = ctx.from.id.toString();
 
+  // نظام التنظيف الذكي
   if (!doc.exists) {
     await db.collection('users').doc(userId).update({
       [`favorites.${docId}`]: admin.firestore.FieldValue.delete()
     }).catch(()=>{});
 
+    // الرد برسالة تنبيه فورية واضحة للطالب بحذف المحاضرة
     ctx.answerCbQuery('⚠️ عذراً، تم حذف هذه المحاضرة من المنصة وتمت إزالتها من مفضلتك تلقائياً!', { show_alert: true }).catch(()=>{});
 
     if (ctx.callbackQuery.message && ctx.callbackQuery.message.reply_markup) {
@@ -281,8 +283,10 @@ bot.action(/openlec_(.+)/, async (ctx) => {
     return;
   }
   
-  const data = doc.data();
+  // إذا المحاضرة موجودة، نوقف علامة التحميل (Loading Spinner) بهدوء
+  ctx.answerCbQuery().catch(()=>{});
   
+  const data = doc.data();
   const userDoc = await db.collection('users').doc(userId).get();
   const favorites = userDoc.exists ? (userDoc.data().favorites || {}) : {};
   const isFav = !!favorites[docId];
@@ -302,12 +306,14 @@ bot.action(/openlec_(.+)/, async (ctx) => {
 });
 
 bot.action(/get_(.+)/, async (ctx) => {
-  ctx.answerCbQuery('⏳ جاري جلب المحتوى...').catch(()=>{}); 
-  
   const docId = ctx.match[1];
   const doc = await db.collection('materials').doc(docId).get();
   
-  if (!doc.exists) return ctx.reply('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه بواسطة الإدارة.').catch(()=>{});
+  if (!doc.exists) {
+    return ctx.answerCbQuery('⚠️ عذراً، هذا الملف لم يعد متاحاً أو تم حذفه بواسطة الإدارة.', { show_alert: true }).catch(()=>{});
+  }
+  
+  ctx.answerCbQuery().catch(()=>{}); 
   
   const data = doc.data();
   const userId = ctx.from.id.toString();
