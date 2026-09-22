@@ -241,20 +241,24 @@
               <i class="fa-solid fa-paperclip ml-1"></i> أرقام الرسائل في القناة والروابط
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="sm:col-span-2">
+                <label class="text-[10px] text-slate-400">رقم رسالة الملف الأساسي 📄</label>
+                <input type="number" id="fileMessageId" placeholder="مثال: 153" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
+              </div>
               <div>
-                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (عربي)</label>
+                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (عربي) 🇪🇬</label>
                 <input type="number" id="arMessageId" placeholder="مثال: 154" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
               </div>
               <div>
-                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (إنجليزي)</label>
+                <label class="text-[10px] text-slate-400">رقم رسالة الشرح (إنجليزي) 🇬🇧</label>
                 <input type="number" id="enMessageId" placeholder="مثال: 155" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
               </div>
               <div>
-                <label class="text-[10px] text-slate-400">رقم رسالة الملخص</label>
+                <label class="text-[10px] text-slate-400">رقم رسالة الملخص 📑</label>
                 <input type="number" id="summaryMessageId" placeholder="مثال: 156" class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1">
               </div>
               <div>
-                <label class="text-[10px] text-slate-400">رابط الأسئلة (فورم/موقع)</label>
+                <label class="text-[10px] text-slate-400">رابط الأسئلة (فورم/موقع) 📝</label>
                 <input type="url" id="questionsLink" placeholder="https://..." class="glass-input w-full rounded-lg p-2.5 text-sm font-mono mt-1 text-left" dir="ltr">
               </div>
             </div>
@@ -426,6 +430,7 @@
             <td class="p-4 font-bold text-white text-xs">${item.subjectName || item.name}</td>
             <td class="p-4 text-slate-200 text-xs">${item.lectureTitle || item.name}</td>
             <td class="p-4 text-center text-lg space-x-1 rtl:space-x-reverse">
+                ${item.fileMessageId ? '<span title="الملف الأساسي">📄</span>' : ''} 
                 ${item.arMessageId ? '<span title="شرح عربي">🇪🇬</span>' : ''} 
                 ${item.enMessageId ? '<span title="شرح إنجليزي">🇬🇧</span>' : ''} 
                 ${item.questionsLink ? '<span title="أسئلة">📝</span>' : ''} 
@@ -453,18 +458,20 @@
         const l = document.getElementById("lectureTitle").value;
         const c = document.getElementById("categorySelect").value.split('|');
         
+        const f = document.getElementById("fileMessageId").value;
         const ar = document.getElementById("arMessageId").value;
         const en = document.getElementById("enMessageId").value;
         const summ = document.getElementById("summaryMessageId").value;
         const qLink = document.getElementById("questionsLink").value;
 
-        if(!ar && !en && !summ && !qLink) {
+        if(!f && !ar && !en && !summ && !qLink) {
             return Swal.fire('تنبيه', 'يجب إدخال مرفق واحد على الأقل', 'warning');
         }
 
         try { 
             const data = { year:"2", semester: s, subjectName: n, lectureTitle: l, name: l, categoryIcon:c[0], category:c[1], updatedAt: new Date().toISOString() }; 
             
+            if(f) data.fileMessageId = parseInt(f); else data.fileMessageId = firebase.firestore.FieldValue.delete();
             if(ar) data.arMessageId = parseInt(ar); else data.arMessageId = firebase.firestore.FieldValue.delete();
             if(en) data.enMessageId = parseInt(en); else data.enMessageId = firebase.firestore.FieldValue.delete();
             if(summ) data.summaryMessageId = parseInt(summ); else data.summaryMessageId = firebase.firestore.FieldValue.delete();
@@ -495,6 +502,7 @@
         document.getElementById("subjectName").value = i.subjectName || i.name; 
         document.getElementById("lectureTitle").value = i.lectureTitle || i.name; 
         
+        document.getElementById("fileMessageId").value = i.fileMessageId || ""; 
         document.getElementById("arMessageId").value = i.arMessageId || ""; 
         document.getElementById("enMessageId").value = i.enMessageId || ""; 
         document.getElementById("summaryMessageId").value = i.summaryMessageId || ""; 
