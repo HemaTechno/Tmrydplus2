@@ -416,7 +416,7 @@
       }
     }
     
-    // معالجة حفظ وتعديل المحاضرات بدون إجبار الحقول الاختيارية
+    // معالجة حفظ وتعديل المحاضرات بدون أخطاء في الحقول الاختيارية
     document.getElementById("addMaterialForm").addEventListener("submit", async e => {
       e.preventDefault();
       const f = document.getElementById("fileMessageId").value;
@@ -436,13 +436,13 @@
       if(t && t.trim() !== "") {
         data.translatedMessageId = parseInt(t);
       } else {
-        data.translatedMessageId = firebase.firestore.FieldValue.delete();
+        data.translatedMessageId = null;
       }
 
       if(ql && ql.trim() !== "") {
         data.questionsLink = ql.trim();
       } else {
-        data.questionsLink = firebase.firestore.FieldValue.delete();
+        data.questionsLink = "";
       }
       
       const id = document.getElementById("editDocId").value;
@@ -458,7 +458,7 @@
         resetForm(); 
       } catch (error) {
         console.error(error);
-        Swal.fire('خطأ', 'حدث خطأ أثناء حفظ البيانات في قاعدة البيانات', 'error');
+        Swal.fire('خطأ', 'حدث خطأ أثناء حفظ البيانات في قاعدة البيانات: ' + error.message, 'error');
       }
     });
     
