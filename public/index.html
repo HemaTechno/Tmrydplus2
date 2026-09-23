@@ -29,7 +29,7 @@
 <body class="p-4 pb-36">
 
   <!-- شاشة تسجيل الدخول -->
-  <div id="login-screen">
+  <div id="login-screen" style="display: none;">
     <div class="glass-panel rounded-3xl p-10 max-w-md w-full text-center space-y-6 border border-indigo-500/20 shadow-2xl relative overflow-hidden">
       <div class="absolute -top-12 -right-12 w-32 h-32 bg-indigo-600/20 rounded-full blur-2xl"></div>
       <div class="w-20 h-20 bg-gradient-to-tr from-indigo-600 to-violet-500 text-white rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-xl shadow-indigo-600/30">
@@ -219,16 +219,31 @@
   <script>
     const HTML_PASSWORD = "123456";
 
-    function handleLogin(e) {
-      e.preventDefault();
-      if(document.getElementById("htmlPassword").value === HTML_PASSWORD) {
+    // فحص ما إذا كان قد تم تسجيل الدخول مسبقاً في هذا المتصفح
+    window.addEventListener("DOMContentLoaded", () => {
+      if(localStorage.getItem("nursing_admin_logged") === "true") {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("dashboard-content").style.display = "block";
         document.getElementById("bottom-nav").style.display = "flex";
-      } else { Swal.fire('خطأ أمني', 'كلمة المرور غير صحيحة!', 'error'); }
+      } else {
+        document.getElementById("login-screen").style.display = "flex";
+      }
+    });
+
+    function handleLogin(e) {
+      e.preventDefault();
+      if(document.getElementById("htmlPassword").value === HTML_PASSWORD) {
+        localStorage.setItem("nursing_admin_logged", "true"); // حفظ حالة الدخول
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("dashboard-content").style.display = "block";
+        document.getElementById("bottom-nav").style.display = "flex";
+      } else { 
+        Swal.fire('خطأ أمني', 'كلمة المرور غير صحيحة!', 'error'); 
+      }
     }
 
     function logout() {
+      localStorage.removeItem("nursing_admin_logged"); // مسح حالة الدخول عند تسجيل الخروج
       document.getElementById("login-screen").style.display = "flex";
       document.getElementById("dashboard-content").style.display = "none";
       document.getElementById("bottom-nav").style.display = "none";
@@ -416,7 +431,6 @@
       }
     }
     
-    // معالجة حفظ وتعديل المحاضرات بدون أخطاء في الحقول الاختيارية
     document.getElementById("addMaterialForm").addEventListener("submit", async e => {
       e.preventDefault();
       const f = document.getElementById("fileMessageId").value;
