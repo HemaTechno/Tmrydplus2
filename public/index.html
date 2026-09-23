@@ -87,7 +87,7 @@
     <div id="tab-semesters" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
       <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2"><i class="fa-solid fa-layer-group text-indigo-400"></i>إدارة الفصول الدراسية والتيرمات</h2>
       <form id="addSemesterForm" class="flex flex-col md:flex-row gap-3 mb-8">
-        <input type="text" id="semIdInput" placeholder="كود التيرم (مثل: sem1)" required class="glass-input p-4 rounded-2xl md:w-1/4 text-sm font-mono">
+        <input type="text" id="semIdInput" placeholder="كود التيرم (حروف/أرقام إنجليزية فقط، مثل: sem1)" required pattern="[A-Za-z0-9_\-]+" title="اكتب حروف إنجليزية أو أرقام أو - أو _ فقط" class="glass-input p-4 rounded-2xl md:w-1/4 text-sm font-mono">
         <input type="text" id="semNameInput" placeholder="اسم التيرم (مثل: التيرم الأول - التمريض العام)" required class="glass-input p-4 rounded-2xl md:w-2/4 text-sm">
         <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-4 rounded-2xl text-white text-sm font-bold md:w-1/4 transition shadow-lg shadow-indigo-600/30">إضافة تيرم جديد</button>
       </form>
@@ -124,15 +124,15 @@
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5 p-5 rounded-2xl bg-black/20">
           <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف الأساسي (ID):</label>
+            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف الأساسي (ID) <span class="text-rose-400">— مطلوب</span>:</label>
             <input type="number" id="fileMessageId" placeholder="رقم الرسالة في القناة 📄" class="glass-input w-full p-4 rounded-2xl font-mono text-center">
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف المترجم (ID):</label>
+            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف المترجم (ID) <span class="text-slate-500">— اختياري</span>:</label>
             <input type="number" id="translatedMessageId" placeholder="رقم الرسالة في القناة 🌐" class="glass-input w-full p-4 rounded-2xl font-mono text-center">
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">رابط الاختبار أو الأسئلة:</label>
+            <label class="block text-xs text-slate-400 mb-1.5 font-bold">رابط الاختبار أو الأسئلة <span class="text-slate-500">— اختياري</span>:</label>
             <input type="url" id="questionsLink" placeholder="رابط Google Form 📝" class="glass-input w-full p-4 rounded-2xl text-left dir-ltr">
           </div>
         </div>
@@ -245,6 +245,18 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // هيلبر: تنظيف أي نص قادم من قاعدة البيانات قبل حقنه في innerHTML
+    // يمنع مشاكل XSS لو دخل اسم مستخدم أو عنوان محاضرة فيه وسوم HTML
+    function escapeHtml(str) {
+      if (str === undefined || str === null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     // إعدادات فايربيس الخاصة بك
     const firebaseConfig = {
       apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
@@ -323,14 +335,16 @@
       allSemestersCache = []; document.getElementById("semestersTbody").innerHTML = ""; document.getElementById("semSelect").innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
       snap.forEach(doc => { 
         const d = doc.data(); allSemestersCache.push({id: doc.id, ...d}); 
-        document.getElementById("semSelect").innerHTML += `<option value="${doc.id}">${d.name}</option>`; 
-        document.getElementById("semestersTbody").innerHTML += `<tr class="hover:bg-white/[0.02] transition"><td class="p-4 font-mono text-indigo-400 font-bold">${doc.id}</td><td class="p-4 font-bold text-white">${d.name}</td><td class="p-4 text-left"><button onclick="db.collection('semesters').doc('${doc.id}').delete()" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td></tr>`; 
+        document.getElementById("semSelect").innerHTML += `<option value="${escapeHtml(doc.id)}">${escapeHtml(d.name)}</option>`; 
+        document.getElementById("semestersTbody").innerHTML += `<tr class="hover:bg-white/[0.02] transition"><td class="p-4 font-mono text-indigo-400 font-bold">${escapeHtml(doc.id)}</td><td class="p-4 font-bold text-white">${escapeHtml(d.name)}</td><td class="p-4 text-left"><button onclick="db.collection('semesters').doc('${doc.id}').delete()" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td></tr>`; 
       });
     });
     
     document.getElementById("addSemesterForm").addEventListener("submit", async e => { 
       e.preventDefault(); 
-      await db.collection("semesters").doc(document.getElementById("semIdInput").value).set({ name: document.getElementById("semNameInput").value, isActive: true, order: Date.now() }, {merge:true}); 
+      const semId = document.getElementById("semIdInput").value.trim();
+      if(!/^[A-Za-z0-9_\-]+$/.test(semId)) return Swal.fire('تنبيه', 'كود التيرم لازم يكون حروف إنجليزية أو أرقام أو - أو _ فقط', 'warning');
+      await db.collection("semesters").doc(semId).set({ name: document.getElementById("semNameInput").value, isActive: true, order: Date.now() }, {merge:true}); 
       Toast.fire({icon:'success',title:'تم إضافة التيرم بنجاح'}); e.target.reset(); 
     });
 
@@ -348,7 +362,7 @@
       sel.innerHTML='<option value="" disabled selected>-- مواد مسجلة مسبقاً --</option>'; 
       const s = new Set(); 
       allMaterialsCache.forEach(i => { if(i.semester === sem) s.add(i.subjectName || i.name); }); 
-      s.forEach(n => sel.innerHTML += `<option value="${n}">${n}</option>`); 
+      s.forEach(n => sel.innerHTML += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`); 
     }
     
     function renderMaterialsGrouped() {
@@ -378,10 +392,11 @@
           lecturesHtml += `
             <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition">
               <div>
-                <div class="font-bold text-white text-sm">📄 ${lec.lectureTitle || lec.name}</div>
+                <div class="font-bold text-white text-sm">📄 ${escapeHtml(lec.lectureTitle || lec.name)}</div>
                 <div class="text-xs text-slate-400 mt-1 flex gap-3">
-                  <span>الملف الأساسي: <strong class="text-indigo-300 font-mono">${lec.fileMessageId || 'غير متوفر'}</strong></span>
-                  <span>المترجم: <strong class="text-indigo-300 font-mono">${lec.translatedMessageId || 'غير متوفر'}</strong></span>
+                  <span>الملف الأساسي: <strong class="text-indigo-300 font-mono">${lec.fileMessageId ?? 'غير متوفر'}</strong></span>
+                  <span>المترجم: <strong class="text-indigo-300 font-mono">${lec.translatedMessageId ?? 'غير متوفر'}</strong></span>
+                  ${lec.questionsLink ? `<span class="text-emerald-400">📝 يوجد أسئلة</span>` : ''}
                 </div>
               </div>
               <div class="flex gap-2">
@@ -395,7 +410,7 @@
         container.innerHTML += `
           <div class="glass-panel rounded-3xl p-5 border border-white/5 shadow-lg">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
-              <h3 class="font-black text-indigo-400 text-base flex items-center gap-2"><i class="fa-solid fa-book-open"></i><span>مادة: ${subject}</span></h3>
+              <h3 class="font-black text-indigo-400 text-base flex items-center gap-2"><i class="fa-solid fa-book-open"></i><span>مادة: ${escapeHtml(subject)}</span></h3>
               <span class="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-3 py-1 rounded-full font-bold">${filteredLectures.length} محاضرة</span>
             </div>
             <div class="space-y-2.5">${lecturesHtml}</div>
@@ -413,7 +428,9 @@
       const f = document.getElementById("fileMessageId").value;
       const t = document.getElementById("translatedMessageId").value;
       const ql = document.getElementById("questionsLink").value;
-      if(!f && !t && !ql) return Swal.fire('تنبيه', 'يجب إدخال مرفق واحد على الأقل للمحاضرة', 'warning');
+
+      // الملف الأساسي فقط مطلوب - المترجم والأسئلة اختياريين تماماً
+      if(!f) return Swal.fire('تنبيه', 'يجب إدخال معرف الملف الأساسي (ID) على الأقل لحفظ المحاضرة', 'warning');
       
       const data = { 
         semester: document.getElementById("semSelect").value, 
@@ -422,7 +439,7 @@
         updatedAt: new Date().toISOString() 
       };
       
-      if(f) data.fileMessageId = parseInt(f); else data.fileMessageId = firebase.firestore.FieldValue.delete();
+      data.fileMessageId = parseInt(f);
       if(t) data.translatedMessageId = parseInt(t); else data.translatedMessageId = firebase.firestore.FieldValue.delete();
       if(ql) data.questionsLink = ql; else data.questionsLink = firebase.firestore.FieldValue.delete();
       
@@ -464,7 +481,7 @@
         const d = doc.data(); 
         document.getElementById("usersTbody").innerHTML += `
           <tr class="hover:bg-white/[0.02] transition">
-            <td class="p-4 font-bold text-white">${d.firstName || 'طالب'} <span class="text-xs text-slate-500 font-normal mr-2">(@${d.username || 'بدون معرف'})</span></td>
+            <td class="p-4 font-bold text-white">${escapeHtml(d.firstName || 'طالب')} <span class="text-xs text-slate-500 font-normal mr-2">(@${escapeHtml(d.username || 'بدون معرف')})</span></td>
             <td class="p-4 text-left">
               <button onclick="db.collection('users').doc('${doc.id}').update({isBanned:${!d.isBanned}})" class="${d.isBanned ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'} px-4 py-2 rounded-xl text-xs font-bold transition">
                 ${d.isBanned ? 'فك الحظر' : 'حظر الطالب'}
