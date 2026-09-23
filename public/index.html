@@ -416,6 +416,7 @@
       }
     }
     
+    // معالجة حفظ وتعديل المحاضرات بدون إجبار الحقول الاختيارية
     document.getElementById("addMaterialForm").addEventListener("submit", async e => {
       e.preventDefault();
       const f = document.getElementById("fileMessageId").value;
@@ -426,19 +427,39 @@
       
       const data = { 
         semester: document.getElementById("semSelect").value, 
-        subjectName: document.getElementById("subjectName").value, 
-        lectureTitle: document.getElementById("lectureTitle").value, 
+        subjectName: document.getElementById("subjectName").value.trim(), 
+        lectureTitle: document.getElementById("lectureTitle").value.trim(), 
+        fileMessageId: parseInt(f),
         updatedAt: new Date().toISOString() 
       };
       
-      data.fileMessageId = parseInt(f);
-      if(t) data.translatedMessageId = parseInt(t); else data.translatedMessageId = firebase.firestore.FieldValue.delete();
-      if(ql) data.questionsLink = ql; else data.questionsLink = firebase.firestore.FieldValue.delete();
+      if(t && t.trim() !== "") {
+        data.translatedMessageId = parseInt(t);
+      } else {
+        data.translatedMessageId = firebase.firestore.FieldValue.delete();
+      }
+
+      if(ql && ql.trim() !== "") {
+        data.questionsLink = ql.trim();
+      } else {
+        data.questionsLink = firebase.firestore.FieldValue.delete();
+      }
       
       const id = document.getElementById("editDocId").value;
-      if(id) { await db.collection("materials").doc(id).update(data); Toast.fire({icon:'success',title:'تم تعديل المحاضرة بنجاح'}); } 
-      else { data.createdAt = new Date().toISOString(); await db.collection("materials").add(data); Toast.fire({icon:'success',title:'تم حفظ المحاضرة ونشرها'}); }
-      resetForm(); 
+      try {
+        if(id) { 
+          await db.collection("materials").doc(id).update(data); 
+          Toast.fire({icon:'success',title:'تم تعديل المحاضرة بنجاح'}); 
+        } else { 
+          data.createdAt = new Date().toISOString(); 
+          await db.collection("materials").add(data); 
+          Toast.fire({icon:'success',title:'تم حفظ المحاضرة ونشرها'}); 
+        }
+        resetForm(); 
+      } catch (error) {
+        console.error(error);
+        Swal.fire('خطأ', 'حدث خطأ أثناء حفظ البيانات في قاعدة البيانات', 'error');
+      }
     });
     
     function editMaterial(id) { 
