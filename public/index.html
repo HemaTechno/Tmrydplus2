@@ -87,7 +87,7 @@
     <div id="tab-semesters" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
       <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2"><i class="fa-solid fa-layer-group text-indigo-400"></i>إدارة الفصول الدراسية والتيرمات</h2>
       <form id="addSemesterForm" class="flex flex-col md:flex-row gap-3 mb-8">
-        <input type="text" id="semIdInput" placeholder="كود التيرم (حروف/أرقام إنجليزية فقط، مثل: sem1)" required pattern="[A-Za-z0-9_\-]+" title="اكتب حروف إنجليزية أو أرقام أو - أو _ فقط" class="glass-input p-4 rounded-2xl md:w-1/4 text-sm font-mono">
+        <input type="text" id="semIdInput" placeholder="كود التيرم (مثل: sem1)" required pattern="[A-Za-z0-9_\-]+" title="اكتب حروف إنجليزية أو أرقام أو - أو _ فقط" class="glass-input p-4 rounded-2xl md:w-1/4 text-sm font-mono">
         <input type="text" id="semNameInput" placeholder="اسم التيرم (مثل: التيرم الأول - التمريض العام)" required class="glass-input p-4 rounded-2xl md:w-2/4 text-sm">
         <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-4 rounded-2xl text-white text-sm font-bold md:w-1/4 transition shadow-lg shadow-indigo-600/30">إضافة تيرم جديد</button>
       </form>
@@ -125,7 +125,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5 p-5 rounded-2xl bg-black/20">
           <div>
             <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف الأساسي (ID) <span class="text-rose-400">— مطلوب</span>:</label>
-            <input type="number" id="fileMessageId" placeholder="رقم الرسالة في القناة 📄" class="glass-input w-full p-4 rounded-2xl font-mono text-center">
+            <input type="number" id="fileMessageId" placeholder="رقم الرسالة في القناة 📄" required class="glass-input w-full p-4 rounded-2xl font-mono text-center">
           </div>
           <div>
             <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف المترجم (ID) <span class="text-slate-500">— اختياري</span>:</label>
@@ -148,14 +148,13 @@
       </div>
     </div>
 
-    <!-- الجداول الأسبوعية (مع زر التحكم الكامل) -->
+    <!-- الجداول الأسبوعية -->
     <div id="tab-schedule" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-white/5">
         <div>
           <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i>إدارة الجداول الأسبوعية والنشر التلقائي</h2>
           <p class="text-xs text-slate-400 mt-1">تحكم بجدول الأيام، والنشر التلقائي للساعة 8 مساءً.</p>
         </div>
-        <!-- زر تفعيل وتعطيل نظام الجدول -->
         <button onclick="toggleScheduleSystem()" id="scheduleToggleBtn" class="px-5 py-2.5 rounded-2xl font-bold text-xs transition border flex items-center gap-2 bg-slate-800 text-slate-300 border-white/10">
           <span id="scheduleStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
           <span id="scheduleStatusText">جاري التحميل...</span>
@@ -198,7 +197,7 @@
     </div>
   </div>
 
-  <!-- شريط التنقل السفلي الفخم -->
+  <!-- شريط التنقل السفلي -->
   <nav id="bottom-nav" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 flex gap-1.5 z-50 shadow-2xl w-[94%] max-w-lg" style="display: none;">
     <button onclick="switchTab('home')" id="nav-home" class="nav-btn active flex-1 py-3 rounded-2xl text-indigo-400 bg-indigo-500/15 flex flex-col items-center gap-1 text-xs font-bold transition">
       <i class="fa-solid fa-house text-sm"></i> <span>الرئيسية</span>
@@ -245,8 +244,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // هيلبر: تنظيف أي نص قادم من قاعدة البيانات قبل حقنه في innerHTML
-    // يمنع مشاكل XSS لو دخل اسم مستخدم أو عنوان محاضرة فيه وسوم HTML
     function escapeHtml(str) {
       if (str === undefined || str === null) return '';
       return String(str)
@@ -257,7 +254,6 @@
         .replace(/'/g, '&#039;');
     }
 
-    // إعدادات فايربيس الخاصة بك
     const firebaseConfig = {
       apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
       authDomain: "hhhhhh-d4fb8.firebaseapp.com",
@@ -274,7 +270,6 @@
     let allMaterialsCache = [], allSemestersCache = [], isMaintenance = false, scheduleDataCache = {}, isScheduleEnabled = true;
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
 
-    // مراقبة إعدادات الجدول والنشر التلقائي
     db.collection("settings").doc("scheduleConfig").onSnapshot(doc => {
       if(doc.exists) {
         const d = doc.data();
@@ -330,7 +325,6 @@
       }
     }
 
-    // التيرمات
     db.collection("semesters").orderBy("order").onSnapshot(snap => {
       allSemestersCache = []; document.getElementById("semestersTbody").innerHTML = ""; document.getElementById("semSelect").innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
       snap.forEach(doc => { 
@@ -348,7 +342,6 @@
       Toast.fire({icon:'success',title:'تم إضافة التيرم بنجاح'}); e.target.reset(); 
     });
 
-    // المحاضرات وتجميعها
     db.collection("materials").orderBy("createdAt", "desc").onSnapshot(snap => {
       allMaterialsCache = []; document.getElementById("statTotalMaterials").innerText = snap.size;
       snap.forEach(doc => { allMaterialsCache.push({id: doc.id, ...doc.data()}); });
@@ -390,7 +383,7 @@
         let lecturesHtml = "";
         filteredLectures.forEach(lec => {
           lecturesHtml += `
-            <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition">
+            <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5 hover:border-indigo-500/35 transition">
               <div>
                 <div class="font-bold text-white text-sm">📄 ${escapeHtml(lec.lectureTitle || lec.name)}</div>
                 <div class="text-xs text-slate-400 mt-1 flex gap-3">
@@ -429,7 +422,6 @@
       const t = document.getElementById("translatedMessageId").value;
       const ql = document.getElementById("questionsLink").value;
 
-      // الملف الأساسي فقط مطلوب - المترجم والأسئلة اختياريين تماماً
       if(!f) return Swal.fire('تنبيه', 'يجب إدخال معرف الملف الأساسي (ID) على الأقل لحفظ المحاضرة', 'warning');
       
       const data = { 
@@ -473,7 +465,6 @@
       document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-book-medical text-pink-400"></i><span>رفع وإدارة المحتوى التعليمي</span>'; 
     }
 
-    // الطلاب والصيانة
     db.collection("users").orderBy("updatedAt","desc").onSnapshot(snap => { 
       document.getElementById("statTotalUsers").innerText = snap.size; 
       document.getElementById("usersTbody").innerHTML = ""; 
