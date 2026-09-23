@@ -21,7 +21,6 @@
     .tab-content.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     #login-screen { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(circle at center, #111827 0%, #07090e 100%); display: flex; align-items: center; justify-content: center; padding: 20px; }
-    /* تحسين تخصيص شريط التمرير */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0b0f19; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -80,14 +79,6 @@
           <div class="absolute -right-4 -bottom-4 text-pink-500/10 text-8xl group-hover:scale-110 transition duration-500"><i class="fa-solid fa-book-bookmark"></i></div>
           <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">إجمالي المحاضرات والملفات</div>
           <div id="statTotalMaterials" class="text-4xl font-black text-pink-400 mt-2">0</div>
-        </div>
-      </div>
-
-      <div class="p-5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 flex items-start gap-4 text-sm text-indigo-200">
-        <div class="text-indigo-400 text-xl mt-0.5"><i class="fa-solid fa-circle-info"></i></div>
-        <div>
-          <span class="font-bold block mb-1">تلميح النظام الاحترافي:</span>
-          يمكنك إرسال الإذاعات الفورية للطلاب عبر تليجرام بالأمر <code>/bc</code>، أو التحكم الكامل بالنشر التلقائي للجداول من تبويب "الجداول".
         </div>
       </div>
     </div>
@@ -157,12 +148,12 @@
       </div>
     </div>
 
-    <!-- الجداول الأسبوعية (مع زر تعطيل/تفعيل النظام) -->
+    <!-- الجداول الأسبوعية (مع زر التحكم الكامل) -->
     <div id="tab-schedule" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-white/5">
         <div>
           <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i>إدارة الجداول الأسبوعية والنشر التلقائي</h2>
-          <p class="text-xs text-slate-400 mt-1">تحكم بجدول الأيام، والنشر التلقائي للساعة 8 مساءً في اليوم السابق.</p>
+          <p class="text-xs text-slate-400 mt-1">تحكم بجدول الأيام، والنشر التلقائي للساعة 8 مساءً.</p>
         </div>
         <!-- زر تفعيل وتعطيل نظام الجدول -->
         <button onclick="toggleScheduleSystem()" id="scheduleToggleBtn" class="px-5 py-2.5 rounded-2xl font-bold text-xs transition border flex items-center gap-2 bg-slate-800 text-slate-300 border-white/10">
@@ -254,28 +245,29 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // إعدادات فايربيس (تأكد من ضبطها بما يتطابق مع مشروعك)
+    // إعدادات فايربيس الخاصة بك
     const firebaseConfig = {
-  apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
-  authDomain: "hhhhhh-d4fb8.firebaseapp.com",
-  databaseURL: "https://hhhhhh-d4fb8-default-rtdb.firebaseio.com",
-  projectId: "hhhhhh-d4fb8",
-  storageBucket: "hhhhhh-d4fb8.appspot.com",
-  messagingSenderId: "24512338206",
-  appId: "1:24512338206:web:dfe045db59bd3434a2110f",
-  measurementId: "G-HD4R7GNQ5H"
-};
-    firebase.initializeApp(firebaseConfig); const db = firebase.firestore();
+      apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
+      authDomain: "hhhhhh-d4fb8.firebaseapp.com",
+      databaseURL: "https://hhhhhh-d4fb8-default-rtdb.firebaseio.com",
+      projectId: "hhhhhh-d4fb8",
+      storageBucket: "hhhhhh-d4fb8.appspot.com",
+      messagingSenderId: "24512338206",
+      appId: "1:24512338206:web:dfe045db59bd3434a2110f",
+      measurementId: "G-HD4R7GNQ5H"
+    };
+    firebase.initializeApp(firebaseConfig); 
+    const db = firebase.firestore();
     
     let allMaterialsCache = [], allSemestersCache = [], isMaintenance = false, scheduleDataCache = {}, isScheduleEnabled = true;
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
 
-    // جقن ومراقبة إعدادات الجدول والنشر التلقائي
+    // مراقبة إعدادات الجدول والنشر التلقائي
     db.collection("settings").doc("scheduleConfig").onSnapshot(doc => {
       if(doc.exists) {
         const d = doc.data();
         scheduleDataCache = d.days || {};
-        isScheduleEnabled = d.isEnabled !== false; // افتراضياً مفعل لو مش محدد
+        isScheduleEnabled = d.isEnabled !== false; 
         updateScheduleUIState();
         const selectedDay = document.getElementById("scheduleDaySelect").value;
         document.getElementById("scheduleContentInput").value = scheduleDataCache[selectedDay] || "";
@@ -342,7 +334,7 @@
       Toast.fire({icon:'success',title:'تم إضافة التيرم بنجاح'}); e.target.reset(); 
     });
 
-    // المحاضرات وتجميعها حسب المادة
+    // المحاضرات وتجميعها
     db.collection("materials").orderBy("createdAt", "desc").onSnapshot(snap => {
       allMaterialsCache = []; document.getElementById("statTotalMaterials").innerText = snap.size;
       snap.forEach(doc => { allMaterialsCache.push({id: doc.id, ...doc.data()}); });
