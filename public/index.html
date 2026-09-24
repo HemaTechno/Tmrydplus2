@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- مكتبة Supabase للويب -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     * { font-family: 'Tajawal', sans-serif; }
@@ -56,7 +56,7 @@
         <div>
           <h1 class="text-2xl md:text-3xl font-black text-white flex items-center gap-3">
             <span>لوحة تحكم تمريض بلس</span>
-            <span class="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/30">v2.5 Pro</span>
+            <span class="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/30">v3.0 Supabase</span>
           </h1>
           <p class="text-xs text-slate-400 mt-1">إدارة شاملة ومتقدمة للبوت والطلاب والمحتوى التعليمي</p>
         </div>
@@ -219,12 +219,17 @@
   <script>
     const HTML_PASSWORD = "123456";
 
-    // فحص ما إذا كان قد تم تسجيل الدخول مسبقاً في هذا المتصفح
+    // إعدادات Supabase للويب (استبدل القيم بالخاصة بك)
+    const SUPABASE_URL = "https://wjjmarhxljtscrokqlam.supabase.co";
+    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY";
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     window.addEventListener("DOMContentLoaded", () => {
       if(localStorage.getItem("nursing_admin_logged") === "true") {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("dashboard-content").style.display = "block";
         document.getElementById("bottom-nav").style.display = "flex";
+        loadAllData();
       } else {
         document.getElementById("login-screen").style.display = "flex";
       }
@@ -233,17 +238,18 @@
     function handleLogin(e) {
       e.preventDefault();
       if(document.getElementById("htmlPassword").value === HTML_PASSWORD) {
-        localStorage.setItem("nursing_admin_logged", "true"); // حفظ حالة الدخول
+        localStorage.setItem("nursing_admin_logged", "true");
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("dashboard-content").style.display = "block";
         document.getElementById("bottom-nav").style.display = "flex";
+        loadAllData();
       } else { 
         Swal.fire('خطأ أمني', 'كلمة المرور غير صحيحة!', 'error'); 
       }
     }
 
     function logout() {
-      localStorage.removeItem("nursing_admin_logged"); // مسح حالة الدخول عند تسجيل الخروج
+      localStorage.removeItem("nursing_admin_logged");
       document.getElementById("login-screen").style.display = "flex";
       document.getElementById("dashboard-content").style.display = "none";
       document.getElementById("bottom-nav").style.display = "none";
@@ -260,7 +266,7 @@
     }
 
     function escapeHtml(str) {
-      if (str === undefined || str === null) return '';
+      if (!str) return '';
       return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -269,32 +275,60 @@
         .replace(/'/g, '&#039;');
     }
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
-      authDomain: "hhhhhh-d4fb8.firebaseapp.com",
-      databaseURL: "https://hhhhhh-d4fb8-default-rtdb.firebaseio.com",
-      projectId: "hhhhhh-d4fb8",
-      storageBucket: "hhhhhh-d4fb8.appspot.com",
-      messagingSenderId: "24512338206",
-      appId: "1:24512338206:web:dfe045db59bd3434a2110f",
-      measurementId: "G-HD4R7GNQ5H"
-    };
-    firebase.initializeApp(firebaseConfig); 
-    const db = firebase.firestore();
-    
-    let allMaterialsCache = [], allSemestersCache = [], isMaintenance = false, scheduleDataCache = {}, isScheduleEnabled = true;
+    let allMaterialsCache = [], allSemestersCache = [], scheduleDataCache = {}, isScheduleEnabled = true, isMaintenance = false;
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
 
-    db.collection("settings").doc("scheduleConfig").onSnapshot(doc => {
-      if(doc.exists) {
-        const d = doc.data();
-        scheduleDataCache = d.days || {};
-        isScheduleEnabled = d.isEnabled !== false; 
-        updateScheduleUIState();
-        const selectedDay = document.getElementById("scheduleDaySelect").value;
-        document.getElementById("scheduleContentInput").value = scheduleDataCache[selectedDay] || "";
+    // تحميل البيانات دفعة واحدة عند الدخول لتقليل الطلبات
+    async function loadAllData() {
+      try {
+        // 1. تحميل الإعدادات (الصيانة والجدول)
+        const { data: settings } = await supabase.from('settings').select('*');
+        if (settings) {
+          settings.forEach(s => {
+            if (s.key === 'system') {
+              isMaintenance = s.value && s.value.maintenance;
+              updateMaintenanceUI();
+            } else if (s.key === 'scheduleConfig') {
+              scheduleDataCache = s.value && s.value.days ? s.value.days : {};
+              isScheduleEnabled = s.value && s.value.isEnabled !== false;
+              updateScheduleUIState();
+              const selectedDay = document.getElementById("scheduleDaySelect").value;
+              document.getElementById("scheduleContentInput").value = scheduleDataCache[selectedDay] || "";
+            }
+          });
+        }
+
+        // 2. تحميل التيرمات
+        const { data: semesters } = await supabase.from('semesters').select('*').order('order', { ascending: true });
+        allSemestersCache = semesters || [];
+        renderSemesters();
+
+        // 3. تحميل المحاضرات
+        const { data: materials } = await supabase.from('materials').select('*').order('created_at', { ascending: false });
+        allMaterialsCache = materials || [];
+        document.getElementById("statTotalMaterials").innerText = allMaterialsCache.length;
+        updateSubjectsDropdown();
+        renderMaterialsGrouped();
+
+        // 4. تحميل الطلاب
+        const { data: users } = await supabase.from('users').select('*').order('updated_at', { ascending: false });
+        renderUsers(users || []);
+      } catch (e) {
+        console.error('خطأ في تحميل البيانات:', e.message);
       }
-    });
+    }
+
+    function updateMaintenanceUI() {
+      document.getElementById("maintenanceText").innerText = isMaintenance ? "البوت متوقف 🔴" : "البوت يعمل 🟢"; 
+      document.getElementById("maintenanceIndicator").className = isMaintenance ? "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" : "w-2.5 h-2.5 rounded-full bg-emerald-500";
+    }
+
+    async function toggleMaintenance() {
+      isMaintenance = !isMaintenance;
+      await supabase.from('settings').upsert({ key: 'system', value: { maintenance: isMaintenance } });
+      updateMaintenanceUI();
+      Toast.fire({ icon: 'success', title: 'تم تحديث حالة الصيانة' });
+    }
 
     function updateScheduleUIState() {
       const btn = document.getElementById("scheduleToggleBtn");
@@ -313,13 +347,10 @@
 
     async function toggleScheduleSystem() {
       isScheduleEnabled = !isScheduleEnabled;
-      try {
-        await db.collection("settings").doc("scheduleConfig").set({ isEnabled: isScheduleEnabled }, { merge: true });
-        updateScheduleUIState();
-        Toast.fire({ icon: 'success', title: isScheduleEnabled ? 'تم تفعيل النشر التلقائي للجداول' : 'تم تعطيل النشر التلقائي للجداول' });
-      } catch(e) {
-        Swal.fire('خطأ', 'فشل تغيير حالة النشر التلقائي', 'error');
-      }
+      scheduleDataCache = scheduleDataCache || {};
+      await supabase.from('settings').upsert({ key: 'scheduleConfig', value: { isEnabled: isScheduleEnabled, days: scheduleDataCache } });
+      updateScheduleUIState();
+      Toast.fire({ icon: 'success', title: 'تم تغيير حالة النشر التلقائي' });
     }
 
     document.getElementById("scheduleDaySelect").addEventListener("change", (e) => {
@@ -330,49 +361,55 @@
     async function saveScheduleFromWeb() {
       const day = document.getElementById("scheduleDaySelect").value;
       const content = document.getElementById("scheduleContentInput").value;
-      try {
-        await db.collection("settings").doc("scheduleConfig").set({
-          days: { [day]: content }
-        }, { merge: true });
-        Toast.fire({ icon: 'success', title: 'تم حفظ جدول اليوم بنجاح!' });
-      } catch(e) {
-        Swal.fire('خطأ', 'فشل حفظ الجدول', 'error');
-      }
+      scheduleDataCache[day] = content;
+      await supabase.from('settings').upsert({ key: 'scheduleConfig', value: { isEnabled: isScheduleEnabled, days: scheduleDataCache } });
+      Toast.fire({ icon: 'success', title: 'تم حفظ جدول اليوم!' });
     }
 
-    db.collection("semesters").orderBy("order").onSnapshot(snap => {
-      allSemestersCache = []; document.getElementById("semestersTbody").innerHTML = ""; document.getElementById("semSelect").innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
-      snap.forEach(doc => { 
-        const d = doc.data(); allSemestersCache.push({id: doc.id, ...d}); 
-        document.getElementById("semSelect").innerHTML += `<option value="${escapeHtml(doc.id)}">${escapeHtml(d.name)}</option>`; 
-        document.getElementById("semestersTbody").innerHTML += `<tr class="hover:bg-white/[0.02] transition"><td class="p-4 font-mono text-indigo-400 font-bold">${escapeHtml(doc.id)}</td><td class="p-4 font-bold text-white">${escapeHtml(d.name)}</td><td class="p-4 text-left"><button onclick="db.collection('semesters').doc('${doc.id}').delete()" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td></tr>`; 
+    function renderSemesters() {
+      const tbody = document.getElementById("semestersTbody");
+      const semSelect = document.getElementById("semSelect");
+      tbody.innerHTML = "";
+      semSelect.innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
+
+      allSemestersCache.forEach(sem => {
+        semSelect.innerHTML += `<option value="${escapeHtml(sem.id)}">${escapeHtml(sem.name)}</option>`;
+        tbody.innerHTML += `
+          <tr class="hover:bg-white/[0.02] transition">
+            <td class="p-4 font-mono text-indigo-400 font-bold">${escapeHtml(sem.id)}</td>
+            <td class="p-4 font-bold text-white">${escapeHtml(sem.name)}</td>
+            <td class="p-4 text-left"><button onclick="deleteSemester('${sem.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td>
+          </tr>`;
       });
-    });
-    
-    document.getElementById("addSemesterForm").addEventListener("submit", async e => { 
-      e.preventDefault(); 
-      const semId = document.getElementById("semIdInput").value.trim();
-      if(!/^[A-Za-z0-9_\-]+$/.test(semId)) return Swal.fire('تنبيه', 'كود التيرم لازم يكون حروف إنجليزية أو أرقام أو - أو _ فقط', 'warning');
-      await db.collection("semesters").doc(semId).set({ name: document.getElementById("semNameInput").value, isActive: true, order: Date.now() }, {merge:true}); 
-      Toast.fire({icon:'success',title:'تم إضافة التيرم بنجاح'}); e.target.reset(); 
-    });
-
-    db.collection("materials").orderBy("createdAt", "desc").onSnapshot(snap => {
-      allMaterialsCache = []; document.getElementById("statTotalMaterials").innerText = snap.size;
-      snap.forEach(doc => { allMaterialsCache.push({id: doc.id, ...doc.data()}); });
-      updateSubjectsDropdown();
-      renderMaterialsGrouped();
-    });
-
-    function updateSubjectsDropdown() { 
-      const sem = document.getElementById("semSelect").value; 
-      const sel = document.getElementById("existingSubjects"); 
-      sel.innerHTML='<option value="" disabled selected>-- مواد مسجلة مسبقاً --</option>'; 
-      const s = new Set(); 
-      allMaterialsCache.forEach(i => { if(i.semester === sem) s.add(i.subjectName || i.name); }); 
-      s.forEach(n => sel.innerHTML += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`); 
     }
-    
+
+    document.getElementById("addSemesterForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const semId = document.getElementById("semIdInput").value.trim();
+      const semName = document.getElementById("semNameInput").value.trim();
+      if(!/^[A-Za-z0-9_\-]+$/.test(semId)) return Swal.fire('تنبيه', 'كود التيرم لازم يكون حروف إنجليزية أو أرقام أو - أو _ فقط', 'warning');
+      
+      await supabase.from('semesters').upsert({ id: semId, name: semName, is_active: true, order: Date.now() });
+      Toast.fire({ icon: 'success', title: 'تم إضافة التيرم بنجاح' });
+      e.target.reset();
+      loadAllData();
+    });
+
+    async function deleteSemester(id) {
+      await supabase.from('semesters').delete().eq('id', id);
+      Toast.fire({ icon: 'success', title: 'تم حذف التيرم' });
+      loadAllData();
+    }
+
+    function updateSubjectsDropdown() {
+      const sem = document.getElementById("semSelect").value;
+      const sel = document.getElementById("existingSubjects");
+      sel.innerHTML = '<option value="" disabled selected>-- مواد مسجلة مسبقاً --</option>';
+      const s = new Set();
+      allMaterialsCache.forEach(i => { if(i.semester === sem) s.add(i.subject_name); });
+      s.forEach(n => sel.innerHTML += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`);
+    }
+
     function renderMaterialsGrouped() {
       const q = document.getElementById("tableSearch").value.toLowerCase();
       const container = document.getElementById("materialsGroupedContainer");
@@ -380,158 +417,133 @@
 
       const grouped = {};
       allMaterialsCache.forEach(item => {
-        const sub = item.subjectName || item.name || "أخرى";
+        const sub = item.subject_name || "أخرى";
         if (!grouped[sub]) grouped[sub] = [];
         grouped[sub].push(item);
       });
 
       let hasResults = false;
-
       for (const [subject, lectures] of Object.entries(grouped)) {
-        const filteredLectures = lectures.filter(l => 
-          subject.toLowerCase().includes(q) || (l.lectureTitle || l.name || "").toLowerCase().includes(q)
-        );
-
-        if (filteredLectures.length === 0) continue;
+        const filtered = lectures.filter(l => subject.toLowerCase().includes(q) || (l.lecture_title || "").toLowerCase().includes(q));
+        if (filtered.length === 0) continue;
         hasResults = true;
 
         let lecturesHtml = "";
-        filteredLectures.forEach(lec => {
+        filtered.forEach(lec => {
           lecturesHtml += `
-            <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5 hover:border-indigo-500/35 transition">
+            <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5">
               <div>
-                <div class="font-bold text-white text-sm">📄 ${escapeHtml(lec.lectureTitle || lec.name)}</div>
+                <div class="font-bold text-white text-sm">📄 ${escapeHtml(lec.lecture_title)}</div>
                 <div class="text-xs text-slate-400 mt-1 flex gap-3">
-                  <span>الملف الأساسي: <strong class="text-indigo-300 font-mono">${lec.fileMessageId ?? 'غير متوفر'}</strong></span>
-                  <span>المترجم: <strong class="text-indigo-300 font-mono">${lec.translatedMessageId ?? 'غير متوفر'}</strong></span>
-                  ${lec.questionsLink ? `<span class="text-emerald-400">📝 يوجد أسئلة</span>` : ''}
+                  <span>الملف الأساسي: <strong class="text-indigo-300 font-mono">${lec.file_message_id ?? 'غير متوفر'}</strong></span>
+                  <span>المترجم: <strong class="text-indigo-300 font-mono">${lec.translated_message_id ?? 'غير متوفر'}</strong></span>
                 </div>
               </div>
               <div class="flex gap-2">
-                <button onclick="editMaterial('${lec.id}')" class="bg-blue-500/10 text-blue-400 hover:bg-blue-600 hover:text-white px-3.5 py-2 rounded-xl text-xs font-bold transition">تعديل</button>
-                <button onclick="db.collection('materials').doc('${lec.id}').delete()" class="bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white px-3.5 py-2 rounded-xl text-xs font-bold transition">حذف</button>
+                <button onclick="editMaterial('${lec.id}')" class="bg-blue-500/10 text-blue-400 px-3.5 py-2 rounded-xl text-xs font-bold">تعديل</button>
+                <button onclick="deleteMaterial('${lec.id}')" class="bg-rose-500/10 text-rose-400 px-3.5 py-2 rounded-xl text-xs font-bold">حذف</button>
               </div>
-            </div>
-          `;
+            </div>`;
         });
 
         container.innerHTML += `
-          <div class="glass-panel rounded-3xl p-5 border border-white/5 shadow-lg">
+          <div class="glass-panel rounded-3xl p-5 border border-white/5">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
-              <h3 class="font-black text-indigo-400 text-base flex items-center gap-2"><i class="fa-solid fa-book-open"></i><span>مادة: ${escapeHtml(subject)}</span></h3>
-              <span class="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-3 py-1 rounded-full font-bold">${filteredLectures.length} محاضرة</span>
+              <h3 class="font-black text-indigo-400 text-base">مادة: ${escapeHtml(subject)}</h3>
+              <span class="text-xs bg-indigo-500/10 text-indigo-300 px-3 py-1 rounded-full font-bold">${filtered.length} محاضرة</span>
             </div>
             <div class="space-y-2.5">${lecturesHtml}</div>
-          </div>
-        `;
+          </div>`;
       }
-
-      if (!hasResults) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">لا توجد محاضرات مطابقة لبحثك.</div>`;
-      }
+      if (!hasResults) container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">لا توجد محاضرات مطابقة لبحثك.</div>`;
     }
-    
+
     document.getElementById("addMaterialForm").addEventListener("submit", async e => {
       e.preventDefault();
       const f = document.getElementById("fileMessageId").value;
       const t = document.getElementById("translatedMessageId").value;
       const ql = document.getElementById("questionsLink").value;
-
-      if(!f) return Swal.fire('تنبيه', 'يجب إدخال معرف الملف الأساسي (ID) على الأقل لحفظ المحاضرة', 'warning');
-      
-      const data = { 
-        semester: document.getElementById("semSelect").value, 
-        subjectName: document.getElementById("subjectName").value.trim(), 
-        lectureTitle: document.getElementById("lectureTitle").value.trim(), 
-        fileMessageId: parseInt(f),
-        updatedAt: new Date().toISOString() 
-      };
-      
-      if(t && t.trim() !== "") {
-        data.translatedMessageId = parseInt(t);
-      } else {
-        data.translatedMessageId = null;
-      }
-
-      if(ql && ql.trim() !== "") {
-        data.questionsLink = ql.trim();
-      } else {
-        data.questionsLink = "";
-      }
-      
       const id = document.getElementById("editDocId").value;
-      try {
-        if(id) { 
-          await db.collection("materials").doc(id).update(data); 
-          Toast.fire({icon:'success',title:'تم تعديل المحاضرة بنجاح'}); 
-        } else { 
-          data.createdAt = new Date().toISOString(); 
-          await db.collection("materials").add(data); 
-          Toast.fire({icon:'success',title:'تم حفظ المحاضرة ونشرها'}); 
-        }
-        resetForm(); 
-      } catch (error) {
-        console.error(error);
-        Swal.fire('خطأ', 'حدث خطأ أثناء حفظ البيانات في قاعدة البيانات: ' + error.message, 'error');
+
+      if(!f) return Swal.fire('تنبيه', 'يجب إدخال معرف الملف الأساسي (ID)', 'warning');
+
+      const data = {
+        semester: document.getElementById("semSelect").value,
+        subject_name: document.getElementById("subjectName").value.trim(),
+        lecture_title: document.getElementById("lectureTitle").value.trim(),
+        file_message_id: parseInt(f),
+        translated_message_id: t ? parseInt(t) : null,
+        questions_link: ql ? ql.trim() : null
+      };
+
+      if (id) {
+        await supabase.from('materials').update(data).eq('id', id);
+        Toast.fire({ icon: 'success', title: 'تم تعديل المحاضرة بنجاح' });
+      } else {
+        data.created_at = new Date().toISOString();
+        await supabase.from('materials').insert([data]);
+        Toast.fire({ icon: 'success', title: 'تم حفظ ونشر المحاضرة' });
       }
+      resetForm();
+      loadAllData();
     });
-    
-    function editMaterial(id) { 
-      const i = allMaterialsCache.find(m => m.id === id); 
-      if(i) { 
-        document.getElementById("editDocId").value = id; 
-        document.getElementById("semSelect").value = i.semester; 
-        updateSubjectsDropdown(); 
-        document.getElementById("subjectName").value = i.subjectName || i.name; 
-        document.getElementById("lectureTitle").value = i.lectureTitle || i.name; 
-        document.getElementById("fileMessageId").value = i.fileMessageId || ''; 
-        document.getElementById("translatedMessageId").value = i.translatedMessageId || ''; 
-        document.getElementById("questionsLink").value = i.questionsLink || ''; 
-        document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-pink-400"></i><span>تعديل المحاضرة التعليمية</span>'; 
-        document.getElementById("cancelEditBtn").classList.remove("hidden"); 
-        window.scrollTo({ top: 0, behavior: 'smooth' }); 
-      } 
+
+    function editMaterial(id) {
+      const i = allMaterialsCache.find(m => m.id === id);
+      if (i) {
+        document.getElementById("editDocId").value = id;
+        document.getElementById("semSelect").value = i.semester;
+        updateSubjectsDropdown();
+        document.getElementById("subjectName").value = i.subject_name;
+        document.getElementById("lectureTitle").value = i.lecture_title;
+        document.getElementById("fileMessageId").value = i.file_message_id || '';
+        document.getElementById("translatedMessageId").value = i.translated_message_id || '';
+        document.getElementById("questionsLink").value = i.questions_link || '';
+        document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-pink-400"></i><span>تعديل المحاضرة</span>';
+        document.getElementById("cancelEditBtn").classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
 
-    function resetForm() { 
-      document.getElementById("editDocId").value = ""; 
-      document.getElementById("addMaterialForm").reset(); 
-      document.getElementById("cancelEditBtn").classList.add("hidden"); 
-      document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-book-medical text-pink-400"></i><span>رفع وإدارة المحتوى التعليمي</span>'; 
+    async function deleteMaterial(id) {
+      await supabase.from('materials').delete().eq('id', id);
+      Toast.fire({ icon: 'success', title: 'تم حذف المحاضرة' });
+      loadAllData();
     }
 
-    db.collection("users").orderBy("updatedAt","desc").onSnapshot(snap => { 
-      document.getElementById("statTotalUsers").innerText = snap.size; 
-      document.getElementById("usersTbody").innerHTML = ""; 
-      snap.forEach(doc => { 
-        const d = doc.data(); 
-        document.getElementById("usersTbody").innerHTML += `
+    function resetForm() {
+      document.getElementById("editDocId").value = "";
+      document.getElementById("addMaterialForm").reset();
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+      document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-book-medical text-pink-400"></i><span>رفع وإدارة المحتوى التعليمي</span>';
+    }
+
+    function renderUsers(users) {
+      document.getElementById("statTotalUsers").innerText = users.length;
+      const tbody = document.getElementById("usersTbody");
+      tbody.innerHTML = "";
+      users.forEach(d => {
+        tbody.innerHTML += `
           <tr class="hover:bg-white/[0.02] transition">
-            <td class="p-4 font-bold text-white">${escapeHtml(d.firstName || 'طالب')} <span class="text-xs text-slate-500 font-normal mr-2">(@${escapeHtml(d.username || 'بدون معرف')})</span></td>
+            <td class="p-4 font-bold text-white">${escapeHtml(d.first_name || 'طالب')} <span class="text-xs text-slate-500 font-normal mr-2">(@${escapeHtml(d.username || 'بدون معرف')})</span></td>
             <td class="p-4 text-left">
-              <button onclick="db.collection('users').doc('${doc.id}').update({isBanned:${!d.isBanned}})" class="${d.isBanned ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'} px-4 py-2 rounded-xl text-xs font-bold transition">
-                ${d.isBanned ? 'فك الحظر' : 'حظر الطالب'}
+              <button onclick="toggleBan(${d.user_id}, ${d.is_banned})" class="${d.is_banned ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} px-4 py-2 rounded-xl text-xs font-bold transition">
+                ${d.is_banned ? 'فك الحظر' : 'حظر الطالب'}
               </button>
             </td>
-          </tr>`; 
-      }); 
-    });
-    
-    function filterUsers() { 
-      const q = document.getElementById("userSearch").value.toLowerCase(); 
-      document.querySelectorAll("#usersTbody tr").forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none"); 
+          </tr>`;
+      });
     }
-    
-    db.collection("settings").doc("system").onSnapshot(doc => { 
-      const maint = doc.exists && doc.data().maintenance; 
-      document.getElementById("maintenanceText").innerText = maint ? "البوت متوقف 🔴" : "البوت يعمل 🟢"; 
-      document.getElementById("maintenanceIndicator").className = maint ? "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" : "w-2.5 h-2.5 rounded-full bg-emerald-500";
-      isMaintenance = maint; 
-    });
-    
-    async function toggleMaintenance() { 
-      await db.collection("settings").doc("system").set({ maintenance: !isMaintenance }, { merge: true }); 
-      Toast.fire({ icon: 'success', title: 'تم تحديث حالة صيانة البوت بنجاح' }); 
+
+    async function toggleBan(userId, currentStatus) {
+      await supabase.from('users').update({ is_banned: !currentStatus }).eq('user_id', userId);
+      Toast.fire({ icon: 'success', title: 'تم تحديث حالة الطالب' });
+      loadAllData();
+    }
+
+    function filterUsers() {
+      const q = document.getElementById("userSearch").value.toLowerCase();
+      document.querySelectorAll("#usersTbody tr").forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none");
     }
   </script>
 </body>
