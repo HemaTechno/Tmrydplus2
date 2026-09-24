@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- مكتبة Supabase للويب -->
+  <!-- مكتبة Supabase الرسمية للويب -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -219,17 +219,23 @@
   <script>
     const HTML_PASSWORD = "123456";
 
-    // إعدادات Supabase للويب (استخدم مفتاح الـ anon / public العام هنا)
+    // إعدادات Supabase (تأكد من وضع الرابط ومفتاح الـ anon الصحيح)
     const SUPABASE_URL = "https://wjjmarhxljtscrokqlam.supabase.co";
-    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY"; // استبدل هذا بمفتاح anon العام من إعدادات API في Supabase
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY"; 
+    
+    let supabase = null;
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch(err) {
+      console.error("خطأ في تهيئة Supabase:", err);
+    }
 
     window.addEventListener("DOMContentLoaded", () => {
       if(localStorage.getItem("nursing_admin_logged") === "true") {
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("dashboard-content").style.display = "block";
         document.getElementById("bottom-nav").style.display = "flex";
-        loadAllData();
+        if(supabase) loadAllData();
       } else {
         document.getElementById("login-screen").style.display = "flex";
       }
@@ -242,7 +248,7 @@
         document.getElementById("login-screen").style.display = "none";
         document.getElementById("dashboard-content").style.display = "block";
         document.getElementById("bottom-nav").style.display = "flex";
-        loadAllData();
+        if(supabase) loadAllData();
       } else { 
         Swal.fire('خطأ أمني', 'كلمة المرور غير صحيحة!', 'error'); 
       }
@@ -279,6 +285,7 @@
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
 
     async function loadAllData() {
+      if (!supabase) return;
       try {
         const { data: settings } = await supabase.from('settings').select('*');
         if (settings) {
