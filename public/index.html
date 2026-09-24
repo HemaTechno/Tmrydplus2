@@ -219,10 +219,10 @@
   <script>
     const HTML_PASSWORD = "123456";
 
-    // إعدادات Supabase للويب (استبدل القيم بالخاصة بك)
+    // إعدادات Supabase للويب (استخدم مفتاح الـ anon / public العام هنا)
     const SUPABASE_URL = "https://wjjmarhxljtscrokqlam.supabase.co";
-    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY"; // استبدل هذا بمفتاح anon العام من إعدادات API في Supabase
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     window.addEventListener("DOMContentLoaded", () => {
       if(localStorage.getItem("nursing_admin_logged") === "true") {
@@ -278,10 +278,8 @@
     let allMaterialsCache = [], allSemestersCache = [], scheduleDataCache = {}, isScheduleEnabled = true, isMaintenance = false;
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
 
-    // تحميل البيانات دفعة واحدة عند الدخول لتقليل الطلبات
     async function loadAllData() {
       try {
-        // 1. تحميل الإعدادات (الصيانة والجدول)
         const { data: settings } = await supabase.from('settings').select('*');
         if (settings) {
           settings.forEach(s => {
@@ -298,19 +296,16 @@
           });
         }
 
-        // 2. تحميل التيرمات
         const { data: semesters } = await supabase.from('semesters').select('*').order('order', { ascending: true });
         allSemestersCache = semesters || [];
         renderSemesters();
 
-        // 3. تحميل المحاضرات
         const { data: materials } = await supabase.from('materials').select('*').order('created_at', { ascending: false });
         allMaterialsCache = materials || [];
         document.getElementById("statTotalMaterials").innerText = allMaterialsCache.length;
         updateSubjectsDropdown();
         renderMaterialsGrouped();
 
-        // 4. تحميل الطلاب
         const { data: users } = await supabase.from('users').select('*').order('updated_at', { ascending: false });
         renderUsers(users || []);
       } catch (e) {
