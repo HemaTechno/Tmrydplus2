@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة تحكم تمريض بلس</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16211F;
+    --ink-soft:#4B5A56;
+    --teal:#123B3D;
+    --teal-deep:#0B2C2E;
+    --sage:#7FA99B;
+    --sage-soft:#E4EDE9;
+    --paper:#F7FAF8;
+    --line:#DCE6E1;
+    --amber:#B4791F;
+    --amber-soft:#FBF1E1;
+    --red:#A5423A;
+    --red-soft:#FAEAE8;
+    --white:#FFFFFF;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.brand,.stat-num{ font-family:'Tajawal', sans-serif; }
+
+  /* ---------- شاشة الدخول ---------- */
+  #loginScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:
+      radial-gradient(600px 300px at 15% 10%, #17494C 0%, transparent 60%),
+      var(--teal-deep);
+  }
+  .login-card{
+    width:100%;
+    max-width:380px;
+    background:var(--white);
+    border-radius:16px;
+    padding:36px 30px;
+    box-shadow:0 30px 60px rgba(0,0,0,.35);
+  }
+  .login-mark{
+    width:46px;height:46px;border-radius:12px;
+    background:var(--teal);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff; font-family:'Tajawal',sans-serif; font-weight:800; font-size:20px;
+    margin-bottom:18px;
+  }
+  .login-card h1{ font-size:22px; margin:0 0 6px; color:var(--teal-deep); }
+  .login-card p{ margin:0 0 24px; color:var(--ink-soft); font-size:14px; }
+  label{ display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px; }
+  input[type=password], input[type=text], input[type=url], textarea, select{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:11px 13px;
+    font-family:inherit;
+    font-size:14.5px;
+    background:var(--white);
+    color:var(--ink);
+    outline:none;
+    transition:border-color .15s;
+  }
+  input:focus, textarea:focus, select:focus{ border-color:var(--sage); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:8px; cursor:pointer;
+    font-family:inherit; font-weight:600; font-size:14.5px;
+    padding:11px 18px;
+    transition:filter .15s, transform .05s;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--teal); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.12); }
+  .btn-block{ width:100%; margin-top:20px; }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line); }
+  .btn-danger{ background:var(--red-soft); color:var(--red); }
+  .btn-danger:hover{ filter:brightness(0.97); }
+  .btn-sm{ padding:6px 12px; font-size:13px; border-radius:6px; }
+  .error-msg{ color:var(--red); font-size:13.5px; margin-top:14px; display:none; }
+
+  /* ---------- هيكل اللوحة ---------- */
+  #app{ display:none; min-height:100vh; }
+  .shell{ display:flex; min-height:100vh; }
+  .sidebar{
+    width:230px; flex-shrink:0;
+    background:var(--teal-deep);
+    color:#E9F1EE;
+    padding:22px 16px;
+    display:flex; flex-direction:column;
+  }
+  .brand{ color:#fff; font-size:18px; font-weight:800; margin:4px 6px 26px; display:flex; align-items:center; gap:10px;}
+  .brand-mark{ width:30px;height:30px;border-radius:8px; background:var(--sage); color:var(--teal-deep); display:flex;align-items:center;justify-content:center; font-size:14px; font-weight:800;}
+  nav{ display:flex; flex-direction:column; gap:3px; }
+  nav button{
+    all:unset; cursor:pointer;
+    padding:11px 14px; border-radius:8px;
+    font-size:14.5px; color:#C9DAD3;
+    display:flex; align-items:center; gap:10px;
+  }
+  nav button:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  nav button.active{ background:var(--sage); color:var(--teal-deep); font-weight:700; }
+  .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.1); }
+  .sidebar-foot button{ all:unset; cursor:pointer; color:#C9DAD3; font-size:13.5px; padding:8px 14px; }
+  .sidebar-foot button:hover{ color:#fff; }
+
+  .main{ flex:1; padding:28px 34px; max-width:1080px; }
+  .page-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px;}
+  .page-head h1{ font-size:23px; margin:0; color:var(--teal-deep); }
+  .page-head p{ margin:4px 0 0; color:var(--ink-soft); font-size:14px; }
+  .maint-pill{
+    font-size:12.5px; padding:6px 12px; border-radius:100px; font-weight:600;
+    background:var(--sage-soft); color:var(--teal);
+  }
+  .maint-pill.on{ background:var(--amber-soft); color:var(--amber); }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .grid-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+  .stat-card{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; }
+  .stat-card .stat-label{ font-size:13px; color:var(--ink-soft); margin-bottom:8px; }
+  .stat-num{ font-size:28px; font-weight:800; color:var(--teal-deep); }
+
+  .card{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:22px; margin-bottom:20px; }
+  .card h3{ margin:0 0 4px; font-size:16px; color:var(--teal-deep); }
+  .card .hint{ margin:0 0 16px; font-size:13px; color:var(--ink-soft); }
+
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th{ text-align:right; font-size:12.5px; color:var(--ink-soft); font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--line); }
+  td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .row-actions{ display:flex; gap:8px; }
+  .badge{ font-size:12px; padding:3px 9px; border-radius:100px; font-weight:600; }
+  .badge-ok{ background:var(--sage-soft); color:var(--teal); }
+  .badge-banned{ background:var(--red-soft); color:var(--red); }
+
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-grid .full{ grid-column:1/-1; }
+  .form-actions{ display:flex; gap:10px; margin-top:6px; }
+
+  .toolbar{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .toolbar input, .toolbar select{ max-width:240px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--teal-deep); color:#fff; padding:12px 20px; border-radius:8px;
+    font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+  .toast.err{ background:var(--red); }
+
+  .empty{ color:var(--ink-soft); font-size:14px; padding:20px 4px; text-align:center; }
+
+  .days-grid{ display:grid; gap:12px; }
+  .day-row{ display:grid; grid-template-columns:100px 1fr; gap:12px; align-items:start; }
+  .day-row label{ margin-top:9px; font-weight:600; color:var(--teal); }
+
+  @media (max-width:820px){
+    .shell{ flex-direction:column; }
+    .sidebar{ width:100%; flex-direction:row; align-items:center; overflow-x:auto; }
+    .brand{ margin:0 10px 0 0; }
+    nav{ flex-direction:row; }
+    .sidebar-foot{ margin-top:0; margin-right:auto; border-top:none; padding-top:0; }
+    .main{ padding:20px; }
+    .grid-stats{ grid-template-columns:repeat(2,1fr); }
+    .form-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- شاشة تسجيل الدخول -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">ن+</div>
+    <h1>لوحة تحكم تمريض بلس</h1>
+    <p>سجّل الدخول لإدارة المحتوى والطلاب والبوت.</p>
+    <form id="loginForm">
+      <label for="pw">كلمة السر</label>
+      <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password" required>
+      <button class="btn btn-primary btn-block" type="submit">دخول</button>
+      <p class="error-msg" id="loginError">كلمة السر غير صحيحة</p>
+    </form>
+  </div>
+</div>
+
+<!-- التطبيق -->
+<div id="app">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">ن+</span> تمريض بلس</div>
+      <nav>
+        <button data-view="overview" class="active">نظرة عامة</button>
+        <button data-view="semesters">الفصول الدراسية</button>
+        <button data-view="materials">المواد والمحاضرات</button>
+        <button data-view="users">الطلاب</button>
+        <button data-view="broadcast">الإذاعة</button>
+        <button data-view="settings">الإعدادات والجدول</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button id="logoutBtn">تسجيل الخروج ⏻</button>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <!-- نظرة عامة -->
+      <section class="view active" id="view-overview">
+        <div class="page-head">
+          <div>
+            <h1>نظرة عامة</h1>
+            <p>ملخص سريع لحالة المنصة والبوت.</p>
+          </div>
+          <span class="maint-pill" id="maintPill">البوت يعمل بشكل طبيعي</span>
+        </div>
+        <div class="grid-stats">
+          <div class="stat-card"><div class="stat-label">إجمالي الطلاب</div><div class="stat-num" id="statUsers">—</div></div>
+          <div class="stat-card"><div class="stat-label">طلاب محظورون</div><div class="stat-num" id="statBanned">—</div></div>
+          <div class="stat-card"><div class="stat-label">عدد المحاضرات</div><div class="stat-num" id="statMaterials">—</div></div>
+          <div class="stat-card"><div class="stat-label">الفصول الدراسية</div><div class="stat-num" id="statSemesters">—</div></div>
+        </div>
+        <div class="card">
+          <h3>وضع الصيانة</h3>
+          <p class="hint">عند التفعيل، لن يستطيع أي طالب استخدام البوت باستثناء المطوّر/الإدمن.</p>
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <input type="checkbox" id="maintToggle" style="width:auto;">
+            تفعيل وضع الصيانة الآن
+          </label>
+        </div>
+      </section>
+
+      <!-- الفصول الدراسية -->
+      <section class="view" id="view-semesters">
+        <div class="page-head">
+          <div><h1>الفصول الدراسية</h1><p>أضف وعدّل الفصول التي تظهر للطلاب داخل البوت.</p></div>
+        </div>
+        <div class="card">
+          <h3>إضافة فصل جديد</h3>
+          <div class="form-grid">
+            <div><label>اسم الفصل</label><input type="text" id="semName" placeholder="مثال: الفرقة الأولى - ترم أول"></div>
+            <div><label>الترتيب</label><input type="text" id="semOrder" placeholder="0"></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" id="addSemBtn">إضافة الفصل</button></div>
+        </div>
+        <div class="card">
+          <h3>الفصول الحالية</h3>
+          <table>
+            <thead><tr><th>الاسم</th><th>الترتيب</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="semTableBody"></tbody>
+          </table>
+          <div class="empty" id="semEmpty" style="display:none;">لا توجد فصول مضافة بعد.</div>
+        </div>
+      </section>
+
+      <!-- المواد والمحاضرات -->
+      <section class="view" id="view-materials">
+        <div class="page-head">
+          <div><h1>المواد والمحاضرات</h1><p>أضف محاضرة جديدة واربطها بملف أو رابط أسئلة.</p></div>
+        </div>
+        <div class="card">
+          <h3>إضافة محاضرة</h3>
+          <div class="form-grid">
+            <div><label>الفصل الدراسي</label><select id="matSemester"></select></div>
+            <div><label>اسم المادة</label><input type="text" id="matSubject" placeholder="مثال: تمريض الباطنة"></div>
+            <div class="full"><label>عنوان المحاضرة</label><input type="text" id="matTitle" placeholder="مثال: المحاضرة الأولى - مقدمة"></div>
+            <div><label>معرّف رسالة الملف الأساسي (اختياري)</label><input type="text" id="matFile" placeholder="message_id في قناة التخزين"></div>
+            <div><label>معرّف رسالة الملف المترجم (اختياري)</label><input type="text" id="matTrans" placeholder="message_id في قناة التخزين"></div>
+            <div class="full"><label>رابط الأسئلة (اختياري)</label><input type="url" id="matQ" placeholder="https://..."></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" id="addMatBtn">إضافة المحاضرة</button></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <select id="matFilterSemester"><option value="">كل الفصول</option></select>
+          </div>
+          <table>
+            <thead><tr><th>المادة</th><th>المحاضرة</th><th>ملف</th><th>مترجم</th><th>أسئلة</th><th></th></tr></thead>
+            <tbody id="matTableBody"></tbody>
+          </table>
+          <div class="empty" id="matEmpty" style="display:none;">لا توجد محاضرات في هذا الفصل بعد.</div>
+        </div>
+      </section>
+
+      <!-- الطلاب -->
+      <section class="view" id="view-users">
+        <div class="page-head">
+          <div><h1>الطلاب</h1><p>ابحث عن طالب واحظره أو ألغِ حظره.</p></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <input type="text" id="userSearch" placeholder="ابحث بالاسم أو المعرّف...">
+            <button class="btn btn-ghost btn-sm" id="userSearchBtn">بحث</button>
+          </div>
+          <table>
+            <thead><tr><th>الاسم</th><th>يوزر</th><th>المعرّف</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+          <div class="empty" id="userEmpty" style="display:none;">لا يوجد طلاب مطابقون.</div>
+          <div class="form-actions" style="margin-top:14px;">
+            <button class="btn btn-ghost btn-sm" id="userPrevBtn">السابق</button>
+            <button class="btn btn-ghost btn-sm" id="userNextBtn">التالي</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- الإذاعة -->
+      <section class="view" id="view-broadcast">
+        <div class="page-head">
+          <div><h1>الإذاعة</h1><p>أرسل رسالة نصية فورية لكل الطلاب غير المحظورين.</p></div>
+        </div>
+        <div class="card">
+          <label>نص الرسالة (يدعم HTML البسيط مثل &lt;b&gt; و&lt;i&gt;)</label>
+          <textarea id="bcMessage" rows="6" placeholder="اكتب رسالتك هنا..."></textarea>
+          <div class="form-actions">
+            <button class="btn btn-primary" id="bcSendBtn">إرسال للجميع</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- الإعدادات -->
+      <section class="view" id="view-settings">
+        <div class="page-head">
+          <div><h1>الإعدادات والجدول الأسبوعي</h1><p>حدّث جدول المحاضرات الذي يُنشر تلقائياً كل يوم الساعة 8 مساءً.</p></div>
+        </div>
+        <div class="card">
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:18px;">
+            <input type="checkbox" id="schedEnabled" style="width:auto;">
+            تفعيل النشر التلقائي اليومي للجدول
+          </label>
+          <div class="days-grid" id="daysGrid"></div>
+          <div class="form-actions"><button class="btn btn-primary" id="saveSchedBtn">حفظ الجدول</button></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const daysMap = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+let token = localStorage.getItem('np_token') || null;
+let semestersCache = [];
+let usersPage = 1;
+let usersTotal = 0;
+let currentSearch = '';
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function showToast(msg, isErr){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, opts = {}){
+  const res = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(opts.headers || {})
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  let data = {};
+  try { data = await res.json(); } catch(e) {}
+  if (res.status === 401) {
+    logout();
+    throw new Error('انتهت الجلسة، سجّل الدخول مرة أخرى');
+  }
+  if (!res.ok) throw new Error(data.error || 'حدث خطأ غير متوقع');
+  return data;
+}
+
+function logout(){
+  token = null;
+  localStorage.removeItem('np_token');
+  $('#app').style.display = 'none';
+  $('#loginScreen').style.display = 'flex';
+}
+
+function boot(){
+  $('#app').style.display = 'block';
+  $('#loginScreen').style.display = 'none';
+  loadOverview();
+}
+
+/* ---------- تسجيل الدخول ---------- */
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#loginError').style.display = 'none';
+  try {
+    const data = await api('/api/login', { method: 'POST', body: { password: $('#pw').value } });
+    token = data.token;
+    localStorage.setItem('np_token', token);
+    boot();
+  } catch (err) {
+    $('#loginError').style.display = 'block';
+  }
+});
+$('#logoutBtn').addEventListener('click', async () => {
+  try { await api('/api/logout', { method: 'POST' }); } catch(e){}
+  logout();
+});
+
+/* ---------- التنقل ---------- */
+$$('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('.view').forEach(v => v.classList.remove('active'));
+    $('#view-' + btn.dataset.view).classList.add('active');
+    if (btn.dataset.view === 'overview') loadOverview();
+    if (btn.dataset.view === 'semesters') loadSemesters();
+    if (btn.dataset.view === 'materials') loadMaterialsView();
+    if (btn.dataset.view === 'users') { usersPage = 1; loadUsers(); }
+    if (btn.dataset.view === 'settings') loadSettings();
+  });
+});
+
+/* ---------- نظرة عامة ---------- */
+async function loadOverview(){
+  try {
+    const s = await api('/api/stats');
+    $('#statUsers').textContent = s.usersCount;
+    $('#statBanned').textContent = s.bannedCount;
+    $('#statMaterials').textContent = s.materialsCount;
+    $('#statSemesters').textContent = s.semestersCount;
+    $('#maintToggle').checked = s.maintenance;
+    updateMaintPill(s.maintenance);
+  } catch (err) { showToast(err.message, true); }
+}
+function updateMaintPill(on){
+  const pill = $('#maintPill');
+  pill.textContent = on ? 'وضع الصيانة مفعّل' : 'البوت يعمل بشكل طبيعي';
+  pill.className = 'maint-pill' + (on ? ' on' : '');
+}
+$('#maintToggle').addEventListener('change', async (e) => {
+  try {
+    await api('/api/settings/maintenance', { method: 'POST', body: { maintenance: e.target.checked } });
+    updateMaintPill(e.target.checked);
+    showToast(e.target.checked ? 'تم تفعيل وضع الصيانة' : 'تم إيقاف وضع الصيانة');
+  } catch (err) { showToast(err.message, true); e.target.checked = !e.target.checked; }
+});
+
+/* ---------- الفصول ---------- */
+async function loadSemesters(){
+  try {
+    semestersCache = await api('/api/semesters');
+    const body = $('#semTableBody');
+    body.innerHTML = '';
+    $('#semEmpty').style.display = semestersCache.length ? 'none' : 'block';
+    semestersCache.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(s.name)}</td>
+        <td>${s.order ?? 0}</td>
+        <td><span class="badge ${s.is_active ? 'badge-ok' : 'badge-banned'}">${s.is_active ? 'مفعّل' : 'موقوف'}</span></td>
+        <td class="row-actions">
+          <button class="btn btn-ghost btn-sm" data-toggle="${s.id}" data-active="${s.is_active}">${s.is_active ? 'إيقاف' : 'تفعيل'}</button>
+          <button class="btn btn-danger btn-sm" data-del="${s.id}">حذف</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', async () => {
+      try {
+        await api('/api/semesters/' + b.dataset.toggle, { method: 'PUT', body: { is_active: b.dataset.active !== 'true' } });
+        loadSemesters();
+      } catch (err) { showToast(err.message, true); }
+    }));
+    body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('حذف هذا الفصل نهائياً؟')) return;
+      try { await api('/api/semesters/' + b.dataset.del, { method: 'DELETE' }); loadSemesters(); showToast('تم الحذف'); }
+      catch (err) { showToast(err.message, true); }
+    }));
+    fillSemesterSelects();
+  } catch (err) { showToast(err.message, true); }
+}
+$('#addSemBtn').addEventListener('click', async () => {
+  const name = $('#semName').value.trim();
+  if (!name) return showToast('اكتب اسم الفصل أولاً', true);
+  try {
+    await api('/api/semesters', { method: 'POST', body: { name, order: Number($('#semOrder').value) || 0 } });
+    $('#semName').value = ''; $('#semOrder').value = '';
+    loadSemesters();
+    showToast('تمت إضافة الفصل');
+  } catch (err) { showToast(err.message, true); }
+});
+
+function fillSemesterSelects(){
+  const opts = semestersCache.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  $('#matSemester').innerHTML = opts || '<option value="">لا توجد فصول بعد</option>';
+  $('#matFilterSemester').innerHTML = '<option value="">كل الفصول</option>' + opts;
+}
+
+/* ---------- المواد والمحاضرات ---------- */
+async function loadMaterialsView(){
+  if (!semestersCache.length) await loadSemesters();
+  loadMaterials();
+}
+async function loadMaterials(){
+  try {
+    const semId = $('#matFilterSemester').value;
+    const list = await api('/api/materials' + (semId ? ('?semester=' + semId) : ''));
+    const body = $('#matTableBody');
+    body.innerHTML = '';
+    $('#matEmpty').style.display = list.length ? 'none' : 'block';
+    list.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(m.subject_name)}</td>
+        <td>${escapeHtml(m.lecture_title)}</td>
+        <td>${m.file_message_id ? '✅' : '—'}</td>
+        <td>${m.translated_message_id ? '✅' : '—'}</td>
+        <td>${m.questions_link ? '🔗' : '—'}</td>
+        <td class="row-actions"><button class="btn btn-danger btn-sm" data-del="${m.id}">حذف</button></td>`;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('حذف هذه المحاضرة نهائياً؟')) return;
+      try { await api('/api/materials/' + b.dataset.del, { method: 'DELETE' }); loadMaterials(); showToast('تم الحذف'); }
+      catch (err) { showToast(err.message, true); }
+    }));
+  } catch (err) { showToast(err.message, true); }
+}
+$('#matFilterSemester').addEventListener('change', loadMaterials);
+$('#addMatBtn').addEventListener('click', async () => {
+  const body = {
+    semester: $('#matSemester').value,
+    subject_name: $('#matSubject').value.trim(),
+    lecture_title: $('#matTitle').value.trim(),
+    file_message_id: $('#matFile').value.trim(),
+    translated_message_id: $('#matTrans').value.trim(),
+    questions_link: $('#matQ').value.trim()
+  };
+  if (!body.semester || !body.subject_name || !body.lecture_title) return showToast('استكمل الحقول المطلوبة', true);
+  try {
+    await api('/api/materials', { method: 'POST', body });
+    $('#matSubject').value = ''; $('#matTitle').value = ''; $('#matFile').value = ''; $('#matTrans').value = ''; $('#matQ').value = '';
+    loadMaterials();
+    showToast('تمت إضافة المحاضرة');
+  } catch (err) { showToast(err.message, true); }
+});
+
+/* ---------- الطلاب ---------- */
+async function loadUsers(){
+  try {
+    const q = new URLSearchParams({ page: usersPage, search: currentSearch });
+    const data = await api('/api/users?' + q.toString());
+    usersTotal = data.total;
+    const body = $('#userTableBody');
+    body.innerHTML = '';
+    $('#userEmpty').style.display = data.users.length ? 'none' : 'block';
+    data.users.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(u.first_name || '—')}</td>
+        <td>${u.username ? '@' + escapeHtml(u.username) : '—'}</td>
+        <td>${u.user_id}</td>
+        <td><span class="badge ${u.is_banned ? 'badge-banned' : 'badge-ok'}">${u.is_banned ? 'محظور' : 'نشط'}</span></td>
+        <td class="row-actions">
+          <button class="btn ${u.is_banned ? 'btn-ghost' : 'btn-danger'} btn-sm" data-id="${u.user_id}" data-banned="${u.is_banned}">
+            ${u.is_banned ? 'إلغاء الحظر' : 'حظر'}
+          </button>
+        </td>`;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', async () => {
+      const willBan = b.dataset.banned !== 'true';
+      try {
+        await api(`/api/users/${b.dataset.id}/${willBan ? 'ban' : 'unban'}`, { method: 'POST' });
+        loadUsers();
+        showToast(willBan ? 'تم حظر الطالب' : 'تم إلغاء الحظر');
+      } catch (err) { showToast(err.message, true); }
+    }));
+  } catch (err) { showToast(err.message, true); }
+}
+$('#userSearchBtn').addEventListener('click', () => { currentSearch = $('#userSearch').value.trim(); usersPage = 1; loadUsers(); });
+$('#userSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#userSearchBtn').click(); });
+$('#userPrevBtn').addEventListener('click', () => { if (usersPage > 1) { usersPage--; loadUsers(); } });
+$('#userNextBtn').addEventListener('click', () => { if (usersPage * 25 < usersTotal) { usersPage++; loadUsers(); } });
+
+/* ---------- الإذاعة ---------- */
+$('#bcSendBtn').addEventListener('click', async () => {
+  const message = $('#bcMessage').value.trim();
+  if (!message) return showToast('اكتب رسالة أولاً', true);
+  if (!confirm('سيتم إرسال هذه الرسالة لكل الطلاب غير المحظورين. متابعة؟')) return;
+  $('#bcSendBtn').disabled = true;
+  $('#bcSendBtn').textContent = 'جاري الإرسال...';
+  try {
+    const res = await api('/api/broadcast', { method: 'POST', body: { message } });
+    showToast(`تم الإرسال إلى ${res.sent} طالباً (فشل ${res.failed})`);
+    $('#bcMessage').value = '';
+  } catch (err) { showToast(err.message, true); }
+  finally { $('#bcSendBtn').disabled = false; $('#bcSendBtn').textContent = 'إرسال للجميع'; }
+});
+
+/* ---------- الإعدادات والجدول ---------- */
+async function loadSettings(){
+  try {
+    const s = await api('/api/settings');
+    $('#schedEnabled').checked = s.schedule.isEnabled !== false;
+    const grid = $('#daysGrid');
+    grid.innerHTML = '';
+    daysMap.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'day-row';
+      row.innerHTML = `<label>${d}</label><textarea rows="2" data-day="${i}" placeholder="محتوى محاضرات يوم ${d}...">${escapeHtml((s.schedule.days || [])[i] || '')}</textarea>`;
+      grid.appendChild(row);
+    });
+  } catch (err) { showToast(err.message, true); }
+}
+$('#saveSchedBtn').addEventListener('click', async () => {
+  const days = Array.from($$('#daysGrid textarea')).sort((a,b) => a.dataset.day - b.dataset.day).map(t => t.value);
+  try {
+    await api('/api/settings/schedule', { method: 'POST', body: { isEnabled: $('#schedEnabled').checked, days } });
+    showToast('تم حفظ الجدول');
+  } catch (err) { showToast(err.message, true); }
+});
+
+function escapeHtml(str){
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ---------- بدء التشغيل ---------- */
+if (token) {
+  api('/api/stats').then(boot).catch(() => logout());
+} else {
+  logout();
+}
+</script>
+</body>
+</html>
