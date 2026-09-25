@@ -3,549 +3,394 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة تحكم تمريض بلس الفاخرة</title>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <title>لوحة تحكم تمريض بلس - السحابية</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- مكتبة Supabase الرسمية للويب -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- مكتبات Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <style>
     * { font-family: 'Tajawal', sans-serif; }
     body { background: #07090e; color: #f1f5f9; min-height: 100vh; overflow-x: hidden; }
-    .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.07); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-    .glass-input { background: rgba(10, 15, 30, 0.9); border: 1px solid rgba(255, 255, 255, 0.08); color: #f8fafc; outline: none; transition: all 0.3s ease; }
-    .glass-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
-    .tab-content { display: none; animation: fadeIn 0.4s ease-in-out; }
-    .tab-content.active { display: block; }
+    .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.07); }
+    .glass-input { background: rgba(10, 15, 30, 0.9); border: 1px solid rgba(255, 255, 255, 0.08); color: #f8fafc; outline: none; transition: 0.3s; }
+    .glass-input:focus { border-color: #6366f1; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.4s; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    #login-screen { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(circle at center, #111827 0%, #07090e 100%); display: flex; align-items: center; justify-content: center; padding: 20px; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0b0f19; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    #login-screen { position: fixed; inset: 0; z-index: 9999; background: #07090e; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
 <body class="p-4 pb-36">
 
-  <!-- شاشة تسجيل الدخول -->
-  <div id="login-screen" style="display: none;">
-    <div class="glass-panel rounded-3xl p-10 max-w-md w-full text-center space-y-6 border border-indigo-500/20 shadow-2xl relative overflow-hidden">
-      <div class="absolute -top-12 -right-12 w-32 h-32 bg-indigo-600/20 rounded-full blur-2xl"></div>
+  <!-- شاشة الدخول -->
+  <div id="login-screen">
+    <div class="glass-panel p-10 rounded-3xl max-w-md w-full text-center space-y-6 shadow-2xl">
       <div class="w-20 h-20 bg-gradient-to-tr from-indigo-600 to-violet-500 text-white rounded-3xl mx-auto flex items-center justify-center text-3xl shadow-xl shadow-indigo-600/30">
         <i class="fa-solid fa-shield-halved"></i>
       </div>
-      <div>
-        <h2 class="text-2xl font-black text-white tracking-wide">بوابة التحكم الذكية</h2>
-        <p class="text-xs text-slate-400 mt-1">أدخل كلمة المرور السرية للوصول إلى لوحة تمريض بلس</p>
-      </div>
+      <h2 class="text-2xl font-black text-white">بوابة تمريض بلس</h2>
       <form onsubmit="handleLogin(event)" class="space-y-4">
-        <input type="password" id="htmlPassword" placeholder="••••••" required class="glass-input w-full p-4 rounded-2xl text-center text-xl font-mono tracking-widest">
-        <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-4 rounded-2xl transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
-          <span>تسجيل الدخول</span> <i class="fa-solid fa-arrow-left"></i>
-        </button>
+        <input type="password" id="adminPassword" placeholder="كلمة المرور" required class="glass-input w-full p-4 rounded-2xl text-center text-xl tracking-widest">
+        <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl">دخول</button>
       </form>
     </div>
   </div>
 
   <div id="dashboard-content" class="max-w-6xl mx-auto space-y-6" style="display: none;">
-    
     <!-- الرئيسية -->
     <div id="tab-home" class="tab-content active glass-panel rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-white/5">
-        <div>
-          <h1 class="text-2xl md:text-3xl font-black text-white flex items-center gap-3">
-            <span>لوحة تحكم تمريض بلس</span>
-            <span class="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/30">v3.0 Supabase</span>
-          </h1>
-          <p class="text-xs text-slate-400 mt-1">إدارة شاملة ومتقدمة للبوت والطلاب والمحتوى التعليمي</p>
-        </div>
-        <div class="flex gap-2 w-full md:w-auto">
-          <button onclick="toggleMaintenance()" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 border border-white/10 px-4 py-2.5 rounded-2xl text-white text-xs font-bold transition flex items-center justify-center gap-2">
-            <span id="maintenanceIndicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span id="maintenanceText">البوت يعمل 🟢</span>
-          </button>
-          <button onclick="logout()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 px-4 py-2.5 rounded-2xl text-xs font-bold transition">خروج</button>
-        </div>
+      <div class="flex justify-between items-center mb-8 pb-6 border-b border-white/5">
+        <h1 class="text-3xl font-black">اللوحة السحابية v4.0</h1>
+        <button onclick="logout()" class="text-rose-400 font-bold border border-rose-500/20 px-4 py-2 rounded-xl">خروج</button>
       </div>
+      <div class="grid grid-cols-2 gap-5 mb-8">
+        <div class="glass-input p-6 rounded-3xl text-center"><div class="text-slate-400 text-xs">إجمالي الطلاب</div><div id="statUsers" class="text-3xl text-indigo-400 font-black mt-2">0</div></div>
+        <div class="glass-input p-6 rounded-3xl text-center"><div class="text-slate-400 text-xs">إجمالي المحاضرات</div><div id="statMaterials" class="text-3xl text-pink-400 font-black mt-2">0</div></div>
+      </div>
+      
+      <!-- الإذاعة -->
+      <div class="glass-input p-6 rounded-3xl border border-white/5">
+        <h2 class="font-bold text-amber-400 mb-4"><i class="fa-solid fa-bullhorn mr-2"></i>نظام الإذاعة السريع</h2>
+        <textarea id="bcMessageInput" rows="3" placeholder="اكتب رسالتك لجميع الطلاب هنا (يدعم HTML)..." class="glass-input w-full p-4 rounded-xl text-sm mb-4"></textarea>
+        <button onclick="sendBroadcast()" class="bg-amber-500 text-slate-900 font-bold px-6 py-3 rounded-xl text-sm w-full md:w-auto">إرسال لجميع الطلاب</button>
+      </div>
+    </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-        <div class="glass-input p-6 rounded-3xl relative overflow-hidden group border border-white/5">
-          <div class="absolute -right-4 -bottom-4 text-indigo-500/10 text-8xl group-hover:scale-110 transition duration-500"><i class="fa-solid fa-users"></i></div>
-          <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">إجمالي الطلاب المسجلين</div>
-          <div id="statTotalUsers" class="text-4xl font-black text-indigo-400 mt-2">0</div>
+    <!-- النظام والداتا -->
+    <div id="tab-system" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
+      <h2 class="text-xl font-bold mb-6 text-cyan-400"><i class="fa-solid fa-server mr-2"></i>حالة النظام وقواعد البيانات</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- حالة الاتصال -->
+        <div class="glass-input p-6 rounded-3xl border border-white/5 relative">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-white"><i class="fa-solid fa-database text-emerald-400 mr-2"></i>قاعدة البيانات (Firebase)</h3>
+            <span id="dbStatusBadge" class="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-bold">متصل ومستقر 🟢</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">اللوحة متصلة بقاعدة البيانات وتعمل بنظام التحديث اللحظي (Real-time). أي تعديل هنا يظهر في البوت فوراً.</p>
+          <div class="bg-slate-800/50 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
+            <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> استهلاك الـ Requests للطلاب: <span class="font-bold text-emerald-400">0 / 0</span>
+          </div>
         </div>
-        <div class="glass-input p-6 rounded-3xl relative overflow-hidden group border border-white/5">
-          <div class="absolute -right-4 -bottom-4 text-pink-500/10 text-8xl group-hover:scale-110 transition duration-500"><i class="fa-solid fa-book-bookmark"></i></div>
-          <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">إجمالي المحاضرات والملفات</div>
-          <div id="statTotalMaterials" class="text-4xl font-black text-pink-400 mt-2">0</div>
+
+        <!-- أزرار التحكم -->
+        <div class="glass-input p-6 rounded-3xl border border-white/5 flex flex-col gap-4">
+          <h3 class="font-bold text-white mb-2"><i class="fa-solid fa-sliders text-indigo-400 mr-2"></i>أدوات التحكم السريع</h3>
+          <button onclick="toggleMaintenance()" class="w-full bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
+            <span>وضع الصيانة</span>
+            <span id="maintenanceIndicator" class="text-emerald-400">مغلق 🟢</span>
+          </button>
+          <button onclick="toggleScheduleSystem()" class="w-full bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
+            <span>النشر التلقائي للجدول</span>
+            <span id="scheduleIndicator" class="text-emerald-400">مفعل 🟢</span>
+          </button>
         </div>
       </div>
     </div>
 
     <!-- التيرمات -->
     <div id="tab-semesters" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
-      <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2"><i class="fa-solid fa-layer-group text-indigo-400"></i>إدارة الفصول الدراسية والتيرمات</h2>
+      <h2 class="text-xl font-bold mb-6 text-indigo-400"><i class="fa-solid fa-layer-group mr-2"></i>إدارة الفصول الدراسية</h2>
       <form id="addSemesterForm" class="flex flex-col md:flex-row gap-3 mb-8">
-        <input type="text" id="semIdInput" placeholder="كود التيرم (مثل: sem1)" required pattern="[A-Za-z0-9_\-]+" title="اكتب حروف إنجليزية أو أرقام أو - أو _ فقط" class="glass-input p-4 rounded-2xl md:w-1/4 text-sm font-mono">
-        <input type="text" id="semNameInput" placeholder="اسم التيرم (مثل: التيرم الأول - التمريض العام)" required class="glass-input p-4 rounded-2xl md:w-2/4 text-sm">
-        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-4 rounded-2xl text-white text-sm font-bold md:w-1/4 transition shadow-lg shadow-indigo-600/30">إضافة تيرم جديد</button>
+        <input type="text" id="semIdInput" placeholder="كود التيرم (مثل: sem1)" required class="glass-input p-4 rounded-xl md:w-1/4 text-sm font-mono">
+        <input type="text" id="semNameInput" placeholder="اسم التيرم" required class="glass-input p-4 rounded-xl md:w-2/4 text-sm">
+        <button type="submit" class="bg-indigo-600 text-white font-bold px-6 py-4 rounded-xl md:w-1/4">إضافة تيرم</button>
       </form>
       <div class="overflow-x-auto"><table class="w-full text-right text-sm"><tbody id="semestersTbody" class="divide-y divide-white/5"></tbody></table></div>
     </div>
 
     <!-- المحاضرات -->
     <div id="tab-materials" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-white flex items-center gap-2" id="formTitle"><i class="fa-solid fa-book-medical text-pink-400"></i>رفع وإدارة المحتوى التعليمي</h2>
-        <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3.5 py-2 rounded-xl transition">إلغاء التعديل</button>
-      </div>
-      
-      <form id="addMaterialForm" class="space-y-4 mb-8 bg-slate-900/50 p-6 rounded-3xl border border-white/5 shadow-inner">
+      <h2 class="text-xl font-bold mb-6 text-pink-400"><i class="fa-solid fa-book-medical mr-2"></i>رفع المحاضرات</h2>
+      <form id="addMaterialForm" class="space-y-4 mb-8 bg-slate-900/50 p-6 rounded-3xl border border-white/5">
         <input type="hidden" id="editDocId">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">الفصل الدراسي:</label>
-            <select id="semSelect" onchange="updateSubjectsDropdown()" required class="glass-input w-full p-4 rounded-2xl text-sm"></select>
-          </div>
-          <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">المادة الدراسية:</label>
-            <div class="flex gap-2">
-              <select id="existingSubjects" onchange="document.getElementById('subjectName').value = this.value" class="glass-input w-1/3 p-4 rounded-2xl text-sm"></select>
-              <input type="text" id="subjectName" placeholder="اسم المادة" required class="glass-input w-2/3 p-4 rounded-2xl text-sm">
-            </div>
-          </div>
+          <select id="semSelect" required class="glass-input p-4 rounded-xl text-sm"></select>
+          <input type="text" id="subjectName" placeholder="اسم المادة" required class="glass-input p-4 rounded-xl text-sm">
         </div>
-        
-        <div>
-          <label class="block text-xs text-slate-400 mb-1.5 font-bold">عنوان المحاضرة (يظهر كزر تفاعلي للطالب):</label>
-          <input type="text" id="lectureTitle" placeholder="مثال: المحاضرة الأولى - الجهاز الهضمي والتشريح" required class="glass-input w-full p-4 rounded-2xl text-sm">
+        <input type="text" id="lectureTitle" placeholder="عنوان المحاضرة (يظهر كزر للطالب)" required class="glass-input w-full p-4 rounded-xl text-sm">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="number" id="fileMessageId" placeholder="ID الملف الأساسي" required class="glass-input p-4 rounded-xl text-sm font-mono text-center">
+          <input type="number" id="translatedMessageId" placeholder="ID المترجم (اختياري)" class="glass-input p-4 rounded-xl text-sm font-mono text-center">
+          <input type="url" id="questionsLink" placeholder="رابط الاختبار (اختياري)" class="glass-input p-4 rounded-xl text-sm dir-ltr">
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-white/5 p-5 rounded-2xl bg-black/20">
-          <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف الأساسي (ID) <span class="text-rose-400">— مطلوب</span>:</label>
-            <input type="number" id="fileMessageId" placeholder="رقم الرسالة في القناة 📄" required class="glass-input w-full p-4 rounded-2xl font-mono text-center">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">معرف الملف المترجم (ID) <span class="text-slate-500">— اختياري</span>:</label>
-            <input type="number" id="translatedMessageId" placeholder="رقم الرسالة في القناة 🌐" class="glass-input w-full p-4 rounded-2xl font-mono text-center">
-          </div>
-          <div>
-            <label class="block text-xs text-slate-400 mb-1.5 font-bold">رابط الاختبار أو الأسئلة <span class="text-slate-500">— اختياري</span>:</label>
-            <input type="url" id="questionsLink" placeholder="رابط Google Form 📝" class="glass-input w-full p-4 rounded-2xl text-left dir-ltr">
-          </div>
+        <div class="flex gap-2">
+          <button type="submit" class="w-full bg-pink-600 text-white font-bold py-4 rounded-xl">حفظ ونشر المحاضرة</button>
+          <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden bg-rose-500/20 text-rose-400 font-bold px-6 rounded-xl">إلغاء</button>
         </div>
-        <button type="submit" class="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 py-4 rounded-2xl text-white font-bold text-sm transition shadow-lg shadow-pink-600/35">حفظ ونشر المحاضرة فوراً</button>
       </form>
       
-      <div class="space-y-4">
-        <div class="relative">
-          <i class="fa-solid fa-search absolute right-5 top-4 text-slate-400"></i>
-          <input type="text" id="tableSearch" onkeyup="renderMaterialsGrouped()" placeholder="بحث سريع عن مادة أو محاضرة..." class="glass-input w-full p-4 pr-12 rounded-2xl text-sm">
-        </div>
-        <div id="materialsGroupedContainer" class="space-y-4"></div>
-      </div>
+      <!-- بحث سريع عن محاضرة -->
+      <input type="text" id="searchMaterial" onkeyup="renderMaterials()" placeholder="ابحث عن محاضرة أو مادة..." class="glass-input w-full p-4 rounded-xl text-sm mb-4">
+      <div id="materialsList" class="space-y-3"></div>
     </div>
 
-    <!-- الجداول الأسبوعية -->
+    <!-- الجداول -->
     <div id="tab-schedule" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-white/5">
-        <div>
-          <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-calendar-days text-indigo-400"></i>إدارة الجداول الأسبوعية والنشر التلقائي</h2>
-          <p class="text-xs text-slate-400 mt-1">تحكم بجدول الأيام، والنشر التلقائي للساعة 8 مساءً.</p>
-        </div>
-        <button onclick="toggleScheduleSystem()" id="scheduleToggleBtn" class="px-5 py-2.5 rounded-2xl font-bold text-xs transition border flex items-center gap-2 bg-slate-800 text-slate-300 border-white/10">
-          <span id="scheduleStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
-          <span id="scheduleStatusText">جاري التحميل...</span>
-        </button>
-      </div>
-      
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-        <div>
-          <label class="block text-xs font-bold text-slate-300 mb-2">اختر اليوم المستهدف للجدول:</label>
-          <select id="scheduleDaySelect" class="glass-input w-full p-4 rounded-2xl text-sm">
-            <option value="0">☀️ الأحد</option>
-            <option value="1">🌙 الإثنين</option>
-            <option value="2">🔥 الثلاثاء</option>
-            <option value="3">⚡ الأربعاء</option>
-            <option value="4">🌟 الخميس</option>
-            <option value="5">🏖 الجمعة</option>
-            <option value="6">🪐 السبت</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="mb-6">
-        <label class="block text-xs font-bold text-slate-300 mb-2">محتوى الجدول الدراسي ومواعيد المحاضرات:</label>
-        <textarea id="scheduleContentInput" rows="6" placeholder="اكتب تفاصيل المحاضرات والمدرجات هنا..." class="glass-input w-full p-4 rounded-2xl text-sm leading-relaxed"></textarea>
-      </div>
-
-      <button onclick="saveScheduleFromWeb()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-4 rounded-2xl text-sm transition shadow-lg shadow-indigo-600/30 flex items-center gap-2">
-        <i class="fa-solid fa-floppy-disk"></i> <span>حفظ وتحديث جدول هذا اليوم</span>
-      </button>
+      <h2 class="text-xl font-bold mb-6 text-indigo-400"><i class="fa-solid fa-calendar-days mr-2"></i>الجداول الأسبوعية</h2>
+      <select id="scheduleDaySelect" class="glass-input w-full md:w-1/2 p-4 rounded-xl text-sm mb-4">
+        <option value="0">الأحد</option><option value="1">الإثنين</option><option value="2">الثلاثاء</option>
+        <option value="3">الأربعاء</option><option value="4">الخميس</option><option value="5">الجمعة</option><option value="6">السبت</option>
+      </select>
+      <textarea id="scheduleContentInput" rows="6" placeholder="محتوى جدول هذا اليوم (المحاضرات والمدرجات)..." class="glass-input w-full p-4 rounded-xl text-sm mb-4"></textarea>
+      <button onclick="saveSchedule()" class="bg-indigo-600 text-white font-bold px-8 py-4 rounded-xl text-sm">حفظ جدول اليوم</button>
     </div>
 
     <!-- الطلاب -->
     <div id="tab-users" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
-      <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i>سجل الطلاب المسجلين بالبوت</h2>
-      <div class="relative mb-6">
-        <i class="fa-solid fa-search absolute right-5 top-4 text-slate-400"></i>
-        <input type="text" id="userSearch" onkeyup="filterUsers()" placeholder="ابحث عن طالب بالاسم أو المعرف..." class="glass-input w-full p-4 pr-12 rounded-2xl text-sm">
-      </div>
-      <div class="overflow-x-auto max-h-[500px] overflow-y-auto"><table class="w-full text-right text-sm"><tbody id="usersTbody" class="divide-y divide-white/5"></tbody></table></div>
+      <h2 class="text-xl font-bold mb-6 text-emerald-400"><i class="fa-solid fa-users mr-2"></i>سجل الطلاب</h2>
+      <input type="text" id="searchUser" onkeyup="renderUsers()" placeholder="ابحث عن طالب..." class="glass-input w-full p-4 rounded-xl text-sm mb-4">
+      <div class="overflow-y-auto max-h-[500px]"><table class="w-full text-right text-sm"><tbody id="usersTbody" class="divide-y divide-white/5"></tbody></table></div>
     </div>
   </div>
 
   <!-- شريط التنقل السفلي -->
-  <nav id="bottom-nav" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 flex gap-1.5 z-50 shadow-2xl w-[94%] max-w-lg" style="display: none;">
-    <button onclick="switchTab('home')" id="nav-home" class="nav-btn active flex-1 py-3 rounded-2xl text-indigo-400 bg-indigo-500/15 flex flex-col items-center gap-1 text-xs font-bold transition">
-      <i class="fa-solid fa-house text-sm"></i> <span>الرئيسية</span>
-    </button>
-    <button onclick="switchTab('semesters')" id="nav-semesters" class="nav-btn flex-1 py-3 rounded-2xl text-slate-400 hover:text-white flex flex-col items-center gap-1 text-xs font-bold transition">
-      <i class="fa-solid fa-layer-group text-sm"></i> <span>التيرمات</span>
-    </button>
-    <button onclick="switchTab('materials')" id="nav-materials" class="nav-btn flex-1 py-3 rounded-2xl text-slate-400 hover:text-white flex flex-col items-center gap-1 text-xs font-bold transition">
-      <i class="fa-solid fa-book text-sm"></i> <span>المحاضرات</span>
-    </button>
-    <button onclick="switchTab('schedule')" id="nav-schedule" class="nav-btn flex-1 py-3 rounded-2xl text-slate-400 hover:text-white flex flex-col items-center gap-1 text-xs font-bold transition">
-      <i class="fa-solid fa-calendar text-sm"></i> <span>الجداول</span>
-    </button>
-    <button onclick="switchTab('users')" id="nav-users" class="nav-btn flex-1 py-3 rounded-2xl text-slate-400 hover:text-white flex flex-col items-center gap-1 text-xs font-bold transition">
-      <i class="fa-solid fa-users text-sm"></i> <span>الطلاب</span>
-    </button>
+  <nav id="bottom-nav" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-2.5 flex gap-1.5 z-50 w-[94%] max-w-lg shadow-2xl" style="display: none;">
+    <button onclick="switchTab('home')" id="nav-home" class="nav-btn active flex-1 py-3 text-indigo-400 bg-indigo-500/15 font-bold text-xs rounded-2xl"><i class="fa-solid fa-house block mb-1"></i>الرئيسية</button>
+    <button onclick="switchTab('semesters')" id="nav-semesters" class="nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl"><i class="fa-solid fa-layer-group block mb-1"></i>التيرمات</button>
+    <button onclick="switchTab('materials')" id="nav-materials" class="nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl"><i class="fa-solid fa-book block mb-1"></i>المحاضرات</button>
+    <button onclick="switchTab('schedule')" id="nav-schedule" class="nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl"><i class="fa-solid fa-calendar block mb-1"></i>الجدول</button>
+    <button onclick="switchTab('users')" id="nav-users" class="nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl"><i class="fa-solid fa-users block mb-1"></i>الطلاب</button>
+    <button onclick="switchTab('system')" id="nav-system" class="nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl"><i class="fa-solid fa-server block mb-1"></i>النظام</button>
   </nav>
 
   <script>
-    const HTML_PASSWORD = "123456";
+    // ----------------------------------------------------
+    // 1. إعدادات Firebase 
+    // ----------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyBoPJbx5v6EkOqxOJkbhzHqIJdAByh79Rg",
+      authDomain: "hhhhhh-d4fb8.firebaseapp.com",
+      databaseURL: "https://hhhhhh-d4fb8-default-rtdb.firebaseio.com",
+      projectId: "hhhhhh-d4fb8",
+      storageBucket: "hhhhhh-d4fb8.appspot.com",
+      messagingSenderId: "24512338206",
+      appId: "1:24512338206:web:dfe045db59bd3434a2110f",
+      measurementId: "G-HD4R7GNQ5H"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-    // إعدادات Supabase (تأكد من وضع الرابط ومفتاح الـ anon الصحيح)
-    const SUPABASE_URL = "https://wjjmarhxljtscrokqlam.supabase.co";
-    const SUPABASE_KEY = "sb_secret_Ub9nX37AD0gbpzRx_APkBw_FKqq6YyY"; 
-    
-    let supabase = null;
-    try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } catch(err) {
-      console.error("خطأ في تهيئة Supabase:", err);
-    }
+    // ----------------------------------------------------
+    // 2. المتغيرات العامة
+    // ----------------------------------------------------
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
+    let globalData = { semesters: [], materials: [], users: [] };
+    let isMaintenance = false;
+    let scheduleConfig = { isEnabled: true, days: {} };
 
+    // ----------------------------------------------------
+    // 3. نظام تسجيل الدخول البسيط
+    // ----------------------------------------------------
     window.addEventListener("DOMContentLoaded", () => {
-      if(localStorage.getItem("nursing_admin_logged") === "true") {
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("dashboard-content").style.display = "block";
-        document.getElementById("bottom-nav").style.display = "flex";
-        if(supabase) loadAllData();
-      } else {
-        document.getElementById("login-screen").style.display = "flex";
-      }
+      if(localStorage.getItem("nursing_admin_logged") === "true") showApp();
     });
 
     function handleLogin(e) {
       e.preventDefault();
-      if(document.getElementById("htmlPassword").value === HTML_PASSWORD) {
-        localStorage.setItem("nursing_admin_logged", "true");
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("dashboard-content").style.display = "block";
-        document.getElementById("bottom-nav").style.display = "flex";
-        if(supabase) loadAllData();
-      } else { 
-        Swal.fire('خطأ أمني', 'كلمة المرور غير صحيحة!', 'error'); 
-      }
+      if(document.getElementById('adminPassword').value === "123456") {
+        localStorage.setItem("nursing_admin_logged", "true"); showApp();
+      } else Swal.fire('خطأ', 'كلمة السر غير صحيحة', 'error');
     }
 
-    function logout() {
-      localStorage.removeItem("nursing_admin_logged");
-      document.getElementById("login-screen").style.display = "flex";
-      document.getElementById("dashboard-content").style.display = "none";
-      document.getElementById("bottom-nav").style.display = "none";
-      document.getElementById("htmlPassword").value = "";
+    function showApp() {
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("dashboard-content").style.display = "block";
+      document.getElementById("bottom-nav").style.display = "flex";
+      setupListeners(); // تفعيل المراقبة اللحظية
     }
+    
+    function logout() { localStorage.removeItem("nursing_admin_logged"); location.reload(); }
 
     function switchTab(id) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.getElementById('tab-' + id).classList.add('active');
-      document.querySelectorAll('.nav-btn').forEach(btn => btn.className = "nav-btn flex-1 py-3 rounded-2xl text-slate-400 hover:text-white flex flex-col items-center gap-1 text-xs font-bold transition");
-      const activeBtn = document.getElementById('nav-' + id);
-      activeBtn.className = "nav-btn active flex-1 py-3 rounded-2xl text-indigo-400 bg-indigo-500/15 flex flex-col items-center gap-1 text-xs font-bold transition shadow-sm";
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.className = "nav-btn flex-1 py-3 text-slate-400 font-bold text-xs rounded-2xl");
+      document.getElementById('nav-' + id).className = "nav-btn active flex-1 py-3 text-indigo-400 bg-indigo-500/15 font-bold text-xs rounded-2xl";
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+    // ----------------------------------------------------
+    // 4. المراقبة اللحظية (Real-time Listeners)
+    // ----------------------------------------------------
+    function setupListeners() {
+      // مراقبة الطلاب
+      db.collection('users').onSnapshot(snap => {
+        globalData.users = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        document.getElementById("statUsers").innerText = globalData.users.length;
+        renderUsers();
+      });
 
-    let allMaterialsCache = [], allSemestersCache = [], scheduleDataCache = {}, isScheduleEnabled = true, isMaintenance = false;
-    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#1e293b', color: '#fff' });
+      // مراقبة المحاضرات
+      db.collection('materials').onSnapshot(snap => {
+        globalData.materials = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        document.getElementById("statMaterials").innerText = globalData.materials.length;
+        renderMaterials();
+      });
 
-    async function loadAllData() {
-      if (!supabase) return;
-      try {
-        const { data: settings } = await supabase.from('settings').select('*');
-        if (settings) {
-          settings.forEach(s => {
-            if (s.key === 'system') {
-              isMaintenance = s.value && s.value.maintenance;
-              updateMaintenanceUI();
-            } else if (s.key === 'scheduleConfig') {
-              scheduleDataCache = s.value && s.value.days ? s.value.days : {};
-              isScheduleEnabled = s.value && s.value.isEnabled !== false;
-              updateScheduleUIState();
-              const selectedDay = document.getElementById("scheduleDaySelect").value;
-              document.getElementById("scheduleContentInput").value = scheduleDataCache[selectedDay] || "";
-            }
-          });
-        }
-
-        const { data: semesters } = await supabase.from('semesters').select('*').order('order', { ascending: true });
-        allSemestersCache = semesters || [];
+      // مراقبة التيرمات
+      db.collection('semesters').orderBy('order').onSnapshot(snap => {
+        globalData.semesters = snap.docs.map(d => ({id: d.id, ...d.data()}));
         renderSemesters();
+      });
 
-        const { data: materials } = await supabase.from('materials').select('*').order('created_at', { ascending: false });
-        allMaterialsCache = materials || [];
-        document.getElementById("statTotalMaterials").innerText = allMaterialsCache.length;
-        updateSubjectsDropdown();
-        renderMaterialsGrouped();
-
-        const { data: users } = await supabase.from('users').select('*').order('updated_at', { ascending: false });
-        renderUsers(users || []);
-      } catch (e) {
-        console.error('خطأ في تحميل البيانات:', e.message);
-      }
+      // مراقبة الإعدادات
+      db.collection('settings').onSnapshot(snap => {
+        snap.docs.forEach(doc => {
+          if(doc.id === 'system') {
+            isMaintenance = doc.data().maintenance || false;
+            document.getElementById("maintenanceIndicator").innerText = isMaintenance ? "مفعل 🔴" : "مغلق 🟢";
+            document.getElementById("maintenanceIndicator").className = isMaintenance ? "text-rose-400" : "text-emerald-400";
+          }
+          if(doc.id === 'scheduleConfig') {
+            scheduleConfig = doc.data() || { isEnabled: true, days: {} };
+            document.getElementById("scheduleIndicator").innerText = scheduleConfig.isEnabled ? "مفعل 🟢" : "معطل 🔴";
+            document.getElementById("scheduleIndicator").className = scheduleConfig.isEnabled ? "text-emerald-400" : "text-rose-400";
+            document.getElementById("scheduleContentInput").value = scheduleConfig.days[document.getElementById("scheduleDaySelect").value] || "";
+          }
+        });
+      });
     }
 
-    function updateMaintenanceUI() {
-      document.getElementById("maintenanceText").innerText = isMaintenance ? "البوت متوقف 🔴" : "البوت يعمل 🟢"; 
-      document.getElementById("maintenanceIndicator").className = isMaintenance ? "w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" : "w-2.5 h-2.5 rounded-full bg-emerald-500";
-    }
-
+    // ----------------------------------------------------
+    // 5. دوال الإعدادات والنظام
+    // ----------------------------------------------------
     async function toggleMaintenance() {
-      isMaintenance = !isMaintenance;
-      await supabase.from('settings').upsert({ key: 'system', value: { maintenance: isMaintenance } });
-      updateMaintenanceUI();
+      await db.collection('settings').doc('system').set({ maintenance: !isMaintenance }, { merge: true });
       Toast.fire({ icon: 'success', title: 'تم تحديث حالة الصيانة' });
     }
 
-    function updateScheduleUIState() {
-      const btn = document.getElementById("scheduleToggleBtn");
-      const dot = document.getElementById("scheduleStatusDot");
-      const txt = document.getElementById("scheduleStatusText");
-      if (isScheduleEnabled) {
-        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs transition border flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
-        txt.innerText = "النشر التلقائي مفعل 🟢";
-      } else {
-        btn.className = "px-5 py-2.5 rounded-2xl font-bold text-xs transition border flex items-center gap-2 bg-rose-500/10 text-rose-400 border-rose-500/30";
-        dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
-        txt.innerText = "النشر التلقائي معطل 🔴";
-      }
-    }
-
     async function toggleScheduleSystem() {
-      isScheduleEnabled = !isScheduleEnabled;
-      scheduleDataCache = scheduleDataCache || {};
-      await supabase.from('settings').upsert({ key: 'scheduleConfig', value: { isEnabled: isScheduleEnabled, days: scheduleDataCache } });
-      updateScheduleUIState();
-      Toast.fire({ icon: 'success', title: 'تم تغيير حالة النشر التلقائي' });
+      scheduleConfig.isEnabled = !scheduleConfig.isEnabled;
+      await db.collection('settings').doc('scheduleConfig').set(scheduleConfig);
+      Toast.fire({ icon: 'success', title: 'تم تحديث حالة النشر الأسبوعي' });
     }
-
+    
     document.getElementById("scheduleDaySelect").addEventListener("change", (e) => {
-      const day = e.target.value;
-      document.getElementById("scheduleContentInput").value = scheduleDataCache[day] || "";
+      document.getElementById("scheduleContentInput").value = scheduleConfig.days[e.target.value] || "";
     });
 
-    async function saveScheduleFromWeb() {
-      const day = document.getElementById("scheduleDaySelect").value;
-      const content = document.getElementById("scheduleContentInput").value;
-      scheduleDataCache[day] = content;
-      await supabase.from('settings').upsert({ key: 'scheduleConfig', value: { isEnabled: isScheduleEnabled, days: scheduleDataCache } });
-      Toast.fire({ icon: 'success', title: 'تم حفظ جدول اليوم!' });
+    async function saveSchedule() {
+      scheduleConfig.days[document.getElementById("scheduleDaySelect").value] = document.getElementById("scheduleContentInput").value;
+      await db.collection('settings').doc('scheduleConfig').set(scheduleConfig);
+      Toast.fire({ icon: 'success', title: 'تم حفظ جدول اليوم' });
     }
 
+    async function sendBroadcast() {
+      const message = document.getElementById('bcMessageInput').value;
+      if(!message) return Swal.fire('تنبيه', 'يرجى كتابة الرسالة أولاً', 'warning');
+      
+      // بمجرد كتابة هذا الأمر، سيلتقطه البوت فوراً ويرسل الرسائل للطلاب
+      await db.collection('settings').doc('broadcast').set({ message: message, trigger: true });
+      document.getElementById('bcMessageInput').value = "";
+      Toast.fire({ icon: 'success', title: 'تم إرسال أمر الإذاعة للبوت' });
+    }
+
+    // ----------------------------------------------------
+    // 6. دوال التيرمات والمحاضرات
+    // ----------------------------------------------------
     function renderSemesters() {
       const tbody = document.getElementById("semestersTbody");
-      const semSelect = document.getElementById("semSelect");
-      tbody.innerHTML = "";
-      semSelect.innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
-
-      allSemestersCache.forEach(sem => {
-        semSelect.innerHTML += `<option value="${escapeHtml(sem.id)}">${escapeHtml(sem.name)}</option>`;
+      const sel = document.getElementById("semSelect");
+      tbody.innerHTML = ""; sel.innerHTML = '<option value="" disabled selected>-- اختر الفصل الدراسي --</option>';
+      globalData.semesters.forEach(s => {
+        sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
         tbody.innerHTML += `
-          <tr class="hover:bg-white/[0.02] transition">
-            <td class="p-4 font-mono text-indigo-400 font-bold">${escapeHtml(sem.id)}</td>
-            <td class="p-4 font-bold text-white">${escapeHtml(sem.name)}</td>
-            <td class="p-4 text-left"><button onclick="deleteSemester('${sem.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td>
+          <tr class="hover:bg-slate-800/50">
+            <td class="p-4 font-bold text-white">${s.name} <span class="text-xs text-indigo-400 block">${s.id}</span></td>
+            <td class="p-4 text-left"><button onclick="db.collection('semesters').doc('${s.id}').delete()" class="text-rose-400 hover:text-rose-300 text-xs font-bold transition">حذف</button></td>
           </tr>`;
       });
     }
 
     document.getElementById("addSemesterForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const semId = document.getElementById("semIdInput").value.trim();
-      const semName = document.getElementById("semNameInput").value.trim();
-      if(!/^[A-Za-z0-9_\-]+$/.test(semId)) return Swal.fire('تنبيه', 'كود التيرم لازم يكون حروف إنجليزية أو أرقام أو - أو _ فقط', 'warning');
-      
-      await supabase.from('semesters').upsert({ id: semId, name: semName, is_active: true, order: Date.now() });
-      Toast.fire({ icon: 'success', title: 'تم إضافة التيرم بنجاح' });
-      e.target.reset();
-      loadAllData();
+      await db.collection('semesters').doc(document.getElementById("semIdInput").value).set({
+        name: document.getElementById("semNameInput").value, order: Date.now(), is_active: true
+      });
+      e.target.reset(); Toast.fire({ icon: 'success', title: 'تمت الإضافة بنجاح' });
     });
 
-    async function deleteSemester(id) {
-      await supabase.from('semesters').delete().eq('id', id);
-      Toast.fire({ icon: 'success', title: 'تم حذف التيرم' });
-      loadAllData();
-    }
+    function renderMaterials() {
+      const q = document.getElementById("searchMaterial").value.toLowerCase();
+      const list = document.getElementById("materialsList");
+      const filtered = globalData.materials.filter(m => m.lecture_title.toLowerCase().includes(q) || m.subject_name.toLowerCase().includes(q));
+      
+      if(filtered.length === 0) { list.innerHTML = `<div class="text-center py-6 text-slate-500 text-sm">لا توجد محاضرات مطابقة</div>`; return; }
 
-    function updateSubjectsDropdown() {
-      const sem = document.getElementById("semSelect").value;
-      const sel = document.getElementById("existingSubjects");
-      sel.innerHTML = '<option value="" disabled selected>-- مواد مسجلة مسبقاً --</option>';
-      const s = new Set();
-      allMaterialsCache.forEach(i => { if(i.semester === sem) s.add(i.subject_name); });
-      s.forEach(n => sel.innerHTML += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`);
-    }
-
-    function renderMaterialsGrouped() {
-      const q = document.getElementById("tableSearch").value.toLowerCase();
-      const container = document.getElementById("materialsGroupedContainer");
-      container.innerHTML = "";
-
-      const grouped = {};
-      allMaterialsCache.forEach(item => {
-        const sub = item.subject_name || "أخرى";
-        if (!grouped[sub]) grouped[sub] = [];
-        grouped[sub].push(item);
-      });
-
-      let hasResults = false;
-      for (const [subject, lectures] of Object.entries(grouped)) {
-        const filtered = lectures.filter(l => subject.toLowerCase().includes(q) || (l.lecture_title || "").toLowerCase().includes(q));
-        if (filtered.length === 0) continue;
-        hasResults = true;
-
-        let lecturesHtml = "";
-        filtered.forEach(lec => {
-          lecturesHtml += `
-            <div class="flex justify-between items-center p-3.5 bg-slate-900/80 rounded-2xl border border-white/5">
-              <div>
-                <div class="font-bold text-white text-sm">📄 ${escapeHtml(lec.lecture_title)}</div>
-                <div class="text-xs text-slate-400 mt-1 flex gap-3">
-                  <span>الملف الأساسي: <strong class="text-indigo-300 font-mono">${lec.file_message_id ?? 'غير متوفر'}</strong></span>
-                  <span>المترجم: <strong class="text-indigo-300 font-mono">${lec.translated_message_id ?? 'غير متوفر'}</strong></span>
-                </div>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="editMaterial('${lec.id}')" class="bg-blue-500/10 text-blue-400 px-3.5 py-2 rounded-xl text-xs font-bold">تعديل</button>
-                <button onclick="deleteMaterial('${lec.id}')" class="bg-rose-500/10 text-rose-400 px-3.5 py-2 rounded-xl text-xs font-bold">حذف</button>
-              </div>
-            </div>`;
-        });
-
-        container.innerHTML += `
-          <div class="glass-panel rounded-3xl p-5 border border-white/5">
-            <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
-              <h3 class="font-black text-indigo-400 text-base">مادة: ${escapeHtml(subject)}</h3>
-              <span class="text-xs bg-indigo-500/10 text-indigo-300 px-3 py-1 rounded-full font-bold">${filtered.length} محاضرة</span>
-            </div>
-            <div class="space-y-2.5">${lecturesHtml}</div>
-          </div>`;
-      }
-      if (!hasResults) container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">لا توجد محاضرات مطابقة لبحثك.</div>`;
+      list.innerHTML = filtered.map(m => `
+        <div class="flex justify-between items-center p-4 bg-slate-800 rounded-xl mb-2 border border-white/5">
+          <div>
+            <div class="font-bold text-white text-sm">${m.lecture_title}</div>
+            <div class="text-xs text-slate-400 mt-1">المادة: <span class="text-indigo-300">${m.subject_name}</span> | الأساسي: ${m.file_message_id}</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="editMaterial('${m.id}')" class="bg-blue-500/10 text-blue-400 px-3 py-2 rounded-xl text-xs font-bold">تعديل</button>
+            <button onclick="db.collection('materials').doc('${m.id}').delete()" class="bg-rose-500/10 text-rose-400 px-3 py-2 rounded-xl text-xs font-bold">حذف</button>
+          </div>
+        </div>`).join('');
     }
 
     document.getElementById("addMaterialForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const f = document.getElementById("fileMessageId").value;
-      const t = document.getElementById("translatedMessageId").value;
-      const ql = document.getElementById("questionsLink").value;
-      const id = document.getElementById("editDocId").value;
-
-      if(!f) return Swal.fire('تنبيه', 'يجب إدخال معرف الملف الأساسي (ID)', 'warning');
-
-      const data = {
-        semester: document.getElementById("semSelect").value,
-        subject_name: document.getElementById("subjectName").value.trim(),
-        lecture_title: document.getElementById("lectureTitle").value.trim(),
-        file_message_id: parseInt(f),
-        translated_message_id: t ? parseInt(t) : null,
-        questions_link: ql ? ql.trim() : null
+      const id = document.getElementById("editDocId").value || Date.now().toString();
+      const payload = {
+        semester: document.getElementById("semSelect").value, 
+        subject_name: document.getElementById("subjectName").value,
+        lecture_title: document.getElementById("lectureTitle").value, 
+        file_message_id: Number(document.getElementById("fileMessageId").value),
+        translated_message_id: document.getElementById("translatedMessageId").value ? Number(document.getElementById("translatedMessageId").value) : null,
+        questions_link: document.getElementById("questionsLink").value || null
       };
-
-      if (id) {
-        await supabase.from('materials').update(data).eq('id', id);
-        Toast.fire({ icon: 'success', title: 'تم تعديل المحاضرة بنجاح' });
-      } else {
-        data.created_at = new Date().toISOString();
-        await supabase.from('materials').insert([data]);
-        Toast.fire({ icon: 'success', title: 'تم حفظ ونشر المحاضرة' });
-      }
+      await db.collection('materials').doc(id).set(payload, { merge: true });
       resetForm();
-      loadAllData();
+      Toast.fire({ icon: 'success', title: 'تم الحفظ والمزامنة مع البوت' });
     });
 
     function editMaterial(id) {
-      const i = allMaterialsCache.find(m => m.id === id);
-      if (i) {
-        document.getElementById("editDocId").value = id;
-        document.getElementById("semSelect").value = i.semester;
-        updateSubjectsDropdown();
-        document.getElementById("subjectName").value = i.subject_name;
-        document.getElementById("lectureTitle").value = i.lecture_title;
-        document.getElementById("fileMessageId").value = i.file_message_id || '';
-        document.getElementById("translatedMessageId").value = i.translated_message_id || '';
-        document.getElementById("questionsLink").value = i.questions_link || '';
-        document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-pink-400"></i><span>تعديل المحاضرة</span>';
+      const m = globalData.materials.find(x => x.id === id);
+      if(m) {
+        document.getElementById("editDocId").value = m.id; document.getElementById("semSelect").value = m.semester;
+        document.getElementById("subjectName").value = m.subject_name; document.getElementById("lectureTitle").value = m.lecture_title;
+        document.getElementById("fileMessageId").value = m.file_message_id; document.getElementById("translatedMessageId").value = m.translated_message_id || "";
+        document.getElementById("questionsLink").value = m.questions_link || "";
         document.getElementById("cancelEditBtn").classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
 
-    async function deleteMaterial(id) {
-      await supabase.from('materials').delete().eq('id', id);
-      Toast.fire({ icon: 'success', title: 'تم حذف المحاضرة' });
-      loadAllData();
+    function resetForm() { 
+      document.getElementById("addMaterialForm").reset(); 
+      document.getElementById("editDocId").value = ""; 
+      document.getElementById("cancelEditBtn").classList.add("hidden"); 
     }
 
-    function resetForm() {
-      document.getElementById("editDocId").value = "";
-      document.getElementById("addMaterialForm").reset();
-      document.getElementById("cancelEditBtn").classList.add("hidden");
-      document.getElementById("formTitle").innerHTML = '<i class="fa-solid fa-book-medical text-pink-400"></i><span>رفع وإدارة المحتوى التعليمي</span>';
-    }
-
-    function renderUsers(users) {
-      document.getElementById("statTotalUsers").innerText = users.length;
+    // ----------------------------------------------------
+    // 7. سجل الطلاب
+    // ----------------------------------------------------
+    function renderUsers() {
+      const q = document.getElementById("searchUser").value.toLowerCase();
       const tbody = document.getElementById("usersTbody");
-      tbody.innerHTML = "";
-      users.forEach(d => {
-        tbody.innerHTML += `
-          <tr class="hover:bg-white/[0.02] transition">
-            <td class="p-4 font-bold text-white">${escapeHtml(d.first_name || 'طالب')} <span class="text-xs text-slate-500 font-normal mr-2">(@${escapeHtml(d.username || 'بدون معرف')})</span></td>
-            <td class="p-4 text-left">
-              <button onclick="toggleBan(${d.user_id}, ${d.is_banned})" class="${d.is_banned ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} px-4 py-2 rounded-xl text-xs font-bold transition">
-                ${d.is_banned ? 'فك الحظر' : 'حظر الطالب'}
-              </button>
-            </td>
-          </tr>`;
-      });
-    }
-
-    async function toggleBan(userId, currentStatus) {
-      await supabase.from('users').update({ is_banned: !currentStatus }).eq('user_id', userId);
-      Toast.fire({ icon: 'success', title: 'تم تحديث حالة الطالب' });
-      loadAllData();
-    }
-
-    function filterUsers() {
-      const q = document.getElementById("userSearch").value.toLowerCase();
-      document.querySelectorAll("#usersTbody tr").forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none");
+      const filtered = globalData.users.filter(u => (u.first_name || '').toLowerCase().includes(q) || String(u.user_id).includes(q));
+      
+      tbody.innerHTML = filtered.map(u => `
+        <tr class="hover:bg-slate-800/50">
+          <td class="p-4">
+            <div class="font-bold text-white">${u.first_name || 'طالب غير معروف'}</div>
+            <div class="text-xs text-slate-500 font-mono">${u.user_id}</div>
+          </td>
+          <td class="p-4 text-left">
+            <button onclick="db.collection('users').doc('${u.id}').set({is_banned: ${!u.is_banned}}, {merge:true})" 
+              class="${u.is_banned ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'} px-4 py-2 rounded-xl text-xs font-bold transition">
+              ${u.is_banned ? 'إلغاء الحظر' : 'حظر الطالب'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
     }
   </script>
 </body>
