@@ -64,31 +64,42 @@
     <!-- النظام والداتا -->
     <div id="tab-system" class="tab-content glass-panel rounded-3xl p-6 md:p-8">
       <h2 class="text-xl font-bold mb-6 text-cyan-400"><i class="fa-solid fa-server mr-2"></i>حالة النظام وقواعد البيانات</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <!-- حالة الاتصال -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        
+        <!-- كارت Firebase -->
         <div class="glass-input p-6 rounded-3xl border border-white/5 relative">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-white"><i class="fa-solid fa-database text-emerald-400 mr-2"></i>قاعدة البيانات (Firebase)</h3>
-            <span id="dbStatusBadge" class="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-bold">متصل ومستقر 🟢</span>
+            <h3 class="font-bold text-white"><i class="fa-solid fa-database text-amber-400 mr-2"></i>الأساسي (Firebase)</h3>
+            <span class="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-bold">متصل ومستقر 🟢</span>
           </div>
-          <p class="text-xs text-slate-400 mb-4">اللوحة متصلة بقاعدة البيانات وتعمل بنظام التحديث اللحظي (Real-time). أي تعديل هنا يظهر في البوت فوراً.</p>
+          <p class="text-xs text-slate-400 mb-4">قاعدة البيانات اللحظية. أي تعديل يتم حفظه هنا فوراً ويقرأه البوت بصفر ريكويست للطلاب.</p>
           <div class="bg-slate-800/50 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
-            <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> استهلاك الـ Requests للطلاب: <span class="font-bold text-emerald-400">0 / 0</span>
+            <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> استهلاك البوت الحالي: <span class="font-bold text-emerald-400">0 Requests</span>
           </div>
         </div>
 
-        <!-- أزرار التحكم -->
-        <div class="glass-input p-6 rounded-3xl border border-white/5 flex flex-col gap-4">
-          <h3 class="font-bold text-white mb-2"><i class="fa-solid fa-sliders text-indigo-400 mr-2"></i>أدوات التحكم السريع</h3>
-          <button onclick="toggleMaintenance()" class="w-full bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
-            <span>وضع الصيانة</span>
-            <span id="maintenanceIndicator" class="text-emerald-400">مغلق 🟢</span>
-          </button>
-          <button onclick="toggleScheduleSystem()" class="w-full bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
-            <span>النشر التلقائي للجدول</span>
-            <span id="scheduleIndicator" class="text-emerald-400">مفعل 🟢</span>
-          </button>
+        <!-- كارت Supabase -->
+        <div class="glass-input p-6 rounded-3xl border border-white/5 relative">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-white"><i class="fa-solid fa-server text-emerald-400 mr-2"></i>الاحتياطي (Supabase)</h3>
+            <span class="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full font-bold">جاهز للمزامنة 🟢</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-2">أخر موعد تمت فيه مزامنة ونسخ البيانات من الأساسي للاحتياطي:</p>
+          <div id="lastSyncTime" class="text-lg font-black text-emerald-400 font-mono mt-1">جاري التحميل...</div>
+          <p class="text-[10px] text-slate-500 mt-2">* يقوم سيرفر البوت بالنسخ التلقائي يومياً الساعة 8:00 مساءً.</p>
         </div>
+      </div>
+
+      <!-- أزرار التحكم -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <button onclick="toggleMaintenance()" class="w-full bg-slate-800 border border-white/10 px-4 py-4 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
+          <span>وضع الصيانة للبوت</span>
+          <span id="maintenanceIndicator" class="text-emerald-400">مغلق 🟢</span>
+        </button>
+        <button onclick="toggleScheduleSystem()" class="w-full bg-slate-800 border border-white/10 px-4 py-4 rounded-xl text-white text-sm font-bold transition flex justify-between items-center">
+          <span>النشر التلقائي للجدول</span>
+          <span id="scheduleIndicator" class="text-emerald-400">مفعل 🟢</span>
+        </button>
       </div>
     </div>
 
@@ -124,7 +135,6 @@
         </div>
       </form>
       
-      <!-- بحث سريع عن محاضرة -->
       <input type="text" id="searchMaterial" onkeyup="renderMaterials()" placeholder="ابحث عن محاضرة أو مادة..." class="glass-input w-full p-4 rounded-xl text-sm mb-4">
       <div id="materialsList" class="space-y-3"></div>
     </div>
@@ -184,7 +194,7 @@
     let scheduleConfig = { isEnabled: true, days: {} };
 
     // ----------------------------------------------------
-    // 3. نظام تسجيل الدخول البسيط
+    // 3. نظام الدخول والتنقل
     // ----------------------------------------------------
     window.addEventListener("DOMContentLoaded", () => {
       if(localStorage.getItem("nursing_admin_logged") === "true") showApp();
@@ -201,7 +211,7 @@
       document.getElementById("login-screen").style.display = "none";
       document.getElementById("dashboard-content").style.display = "block";
       document.getElementById("bottom-nav").style.display = "flex";
-      setupListeners(); // تفعيل المراقبة اللحظية
+      setupListeners();
     }
     
     function logout() { localStorage.removeItem("nursing_admin_logged"); location.reload(); }
@@ -215,36 +225,35 @@
     }
 
     // ----------------------------------------------------
-    // 4. المراقبة اللحظية (Real-time Listeners)
+    // 4. المراقبة اللحظية (Real-time)
     // ----------------------------------------------------
     function setupListeners() {
-      // مراقبة الطلاب
       db.collection('users').onSnapshot(snap => {
         globalData.users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         document.getElementById("statUsers").innerText = globalData.users.length;
         renderUsers();
       });
 
-      // مراقبة المحاضرات
       db.collection('materials').onSnapshot(snap => {
         globalData.materials = snap.docs.map(d => ({id: d.id, ...d.data()}));
         document.getElementById("statMaterials").innerText = globalData.materials.length;
         renderMaterials();
       });
 
-      // مراقبة التيرمات
       db.collection('semesters').orderBy('order').onSnapshot(snap => {
         globalData.semesters = snap.docs.map(d => ({id: d.id, ...d.data()}));
         renderSemesters();
       });
 
-      // مراقبة الإعدادات
       db.collection('settings').onSnapshot(snap => {
         snap.docs.forEach(doc => {
           if(doc.id === 'system') {
             isMaintenance = doc.data().maintenance || false;
             document.getElementById("maintenanceIndicator").innerText = isMaintenance ? "مفعل 🔴" : "مغلق 🟢";
             document.getElementById("maintenanceIndicator").className = isMaintenance ? "text-rose-400" : "text-emerald-400";
+            
+            const syncTime = doc.data().lastSync || "لم يتم التزامن بعد";
+            document.getElementById("lastSyncTime").innerText = syncTime;
           }
           if(doc.id === 'scheduleConfig') {
             scheduleConfig = doc.data() || { isEnabled: true, days: {} };
@@ -257,7 +266,7 @@
     }
 
     // ----------------------------------------------------
-    // 5. دوال الإعدادات والنظام
+    // 5. التحكم بالنظام
     // ----------------------------------------------------
     async function toggleMaintenance() {
       await db.collection('settings').doc('system').set({ maintenance: !isMaintenance }, { merge: true });
@@ -283,15 +292,13 @@
     async function sendBroadcast() {
       const message = document.getElementById('bcMessageInput').value;
       if(!message) return Swal.fire('تنبيه', 'يرجى كتابة الرسالة أولاً', 'warning');
-      
-      // بمجرد كتابة هذا الأمر، سيلتقطه البوت فوراً ويرسل الرسائل للطلاب
       await db.collection('settings').doc('broadcast').set({ message: message, trigger: true });
       document.getElementById('bcMessageInput').value = "";
       Toast.fire({ icon: 'success', title: 'تم إرسال أمر الإذاعة للبوت' });
     }
 
     // ----------------------------------------------------
-    // 6. دوال التيرمات والمحاضرات
+    // 6. التيرمات والمحاضرات
     // ----------------------------------------------------
     function renderSemesters() {
       const tbody = document.getElementById("semestersTbody");
@@ -370,7 +377,7 @@
     }
 
     // ----------------------------------------------------
-    // 7. سجل الطلاب
+    // 7. الطلاب
     // ----------------------------------------------------
     function renderUsers() {
       const q = document.getElementById("searchUser").value.toLowerCase();
