@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pharmacology Quiz</title>
+<style>
+:root{--bg:#f4f7f6;--card:#fff;--ink:#16302b;--mut:#5d716d;--line:#d5e0dd;--ok:#14794f;--okb:#dcf3e8;--no:#b3261e;--nob:#fbe3e1;--ac:#0f5c63;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1a19;--card:#172524;--ink:#e6f1ee;--mut:#9ab1ac;--line:#2b3f3c;--ok:#5fd6a2;--okb:#16372b;--no:#ff8f86;--nob:#3d1f1d;--ac:#6cc3cb}}
+:root{color-scheme:light dark}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif;padding:16px}
+main{max-width:680px;margin:0 auto}
+h1{font-size:1.5rem;margin:8px 0 4px}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:12px 0}
+.bar i{display:block;height:100%;background:var(--ac);border-radius:3px;transition:width .3s}
+.meta{color:var(--mut);font-size:.9rem;display:flex;justify-content:space-between}
+.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:12px}
+.q h2{font-size:1.15rem;margin:0 0 12px}
+button{font:inherit;color:inherit;text-align:left;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.ok{background:var(--okb);border-color:var(--ok)}button.no{background:var(--nob);border-color:var(--no)}
+button:disabled{cursor:default}
+.ex{margin-top:12px;padding:12px;border-left:4px solid var(--ac);background:var(--bg);border-radius:4px}
+.ex.bad{border-color:var(--no)}
+.next{background:var(--ac);color:var(--bg);text-align:center;border:0;font-weight:bold;width:100%;margin-top:14px}
+.nav{display:flex;gap:10px}.nav button{flex:1;margin-top:14px;text-align:center}.nav button:disabled{opacity:.4}.tg{display:block;text-align:center;margin:16px 0 0;padding:12px;border-radius:8px;background:#229ed9;color:#fff;text-decoration:none;font-weight:bold}.tg:focus-visible{outline:2px solid var(--ac);outline-offset:2px}.big{font-size:2.4rem;margin:8px 0}
+</style></head><body><main>
+<h1>Pharmacology Quiz</h1>
+<div class="meta"><span id="pos"></span><span id="sc"></span></div>
+<div class="bar"><i id="pb"></i></div>
+<div id="app"></div>
+</main>
+<script>
+// [question, [options], correctIndex, explanation]
+var TF=["True","False"];
+var Q=[
+["Pharmacology is best defined as:",["The science of diseases","The science of drugs","The study of body organs","The study of microorganisms"],1,"Pharmacology = the science of drugs."],
+["Which best defines a drug?",["A substance used only for diagnosis","A natural product or chemical substance used to diagnose or treat disease","A protein found in the body","A receptor on the cell surface"],1,"A drug is any natural or chemical substance used to diagnose or treat disease, not only to diagnose."],
+["Pharmacodynamics is the study of:",["What the body does to the drug","Drug absorption and metabolism","What the drug does to the body","Drug excretion only"],2,"Pharmacodynamics = what the drug does to the body. What the body does to the drug = pharmacokinetics."],
+["Pharmacokinetics is the study of:",["Effect of drug on the body","Effect of body on the drug (ADME)","Drug receptors only","Mechanism of action only"],1,"Pharmacokinetics = Absorption, Distribution, Metabolism, Excretion: the body's effect on the drug."],
+["Adrenaline binds alpha receptors, causing vasoconstriction, which raises blood pressure. Vasoconstriction / binding to alpha receptors is the:",["Pharmacological effect","Mechanism of action","Side effect","Toxic effect"],1,"Mechanism of action = HOW the drug works (receptor binding and vasoconstriction). The pharmacological effect is the end result: raised blood pressure."],
+["Increase in blood pressure after adrenaline is the:",["Pharmacological effect","Mechanism of action","Side effect","Toxic effect"],0,"The observable result (raised BP) is the pharmacological effect."],
+["Morphine and digoxin are obtained from:",["Animals","Minerals","Plants","Microorganisms"],2,"Both are plant-derived (opium poppy and foxglove)."],
+["Which drug is obtained from a microorganism?",["Penicillin","Aspirin","Insulin from pig pancreas","Magnesium"],0,"Penicillin comes from the fungus Penicillium."],
+["The unique, official name of a drug, uniform all over the world, is the:",["Trade name","Generic name","Chemical name","All are correct"],1,"Generic name is the same worldwide. Trade names differ between companies."],
+["The name registered by the manufacturer is the:",["Generic name","Trade (brand) name","Chemical name","All are correct"],1,"Panadol and Tylenol are trade names of paracetamol."],
+["Which is the generic name?",["Panadol","Tylenol","N-(4-hydroxyphenyl)acetamide","Paracetamol"],3,"Paracetamol is the generic name. Panadol/Tylenol are brands; the long name is the chemical name."],
+["Which name is assigned according to chemical structure?",["Generic name","Chemical name","Trade name","Brand name"],1,"The chemical name describes the structure."],
+["A receptor is best described as:",["A carbohydrate molecule in plasma","A protein that binds a drug and initiates a cellular response","A drug metabolite","An enzyme involved in excretion"],1,"Receptors are proteins (on the surface or inside cells) that bind drugs and start a response."],
+["Any drug that binds to a receptor is called a:",["Metabolite","Ligand","Enzyme","Substrate"],1,"Ligand = any molecule that binds a receptor."],
+["The 'lock and key' theory explains:",["Drug excretion","Drug absorption","Drug-receptor interaction","Drug distribution"],2,"The drug (key) fits the receptor (lock)."],
+["Drug affinity is the ability of a drug to:",["Produce a response after binding","Bind to a receptor","Cause toxicity","Be metabolized by the liver"],1,"Affinity = binding. Producing a response after binding = efficacy."],
+["Drug efficacy (intrinsic activity) is the ability to:",["Bind to a receptor only","Produce an action after binding to the receptor","Cross the membrane","Block a receptor permanently"],1,"Efficacy = producing an effect after binding."],
+["Which drug has affinity but NO efficacy?",["Full agonist","Partial agonist","Antagonist","All agonists"],2,"An antagonist binds (affinity) but produces no effect (zero efficacy)."],
+["A full agonist has:",["Affinity only","Efficacy only","Both affinity and efficacy","Neither"],2,"Full agonist: affinity + maximal efficacy."],
+["Which type of ligand activates a receptor and produces a maximal response?",["Antagonist","Partial agonist","Full agonist","Inverse agonist"],2,"Full agonist gives the maximal response. A partial agonist gives a submaximal one."],
+["A partial agonist differs from a full agonist in that it:",["Produces no effect","Produces a maximal response","Produces a submaximal response even when it occupies all receptors","Is always irreversible"],2,"Partial agonists have intrinsic activity between 0 and 1."],
+["An agonist _____ a receptor, an antagonist _____ it.",["blocks / activates","activates / blocks","destroys / blocks","blocks / blocks"],1,"Agonist activates; antagonist binds and blocks."],
+["Intrinsic activity (IA) of a full agonist is:",["0","Between 0 and 1","1","More than 1"],2,"Full agonist IA = 1."],
+["Intrinsic activity (IA) of an antagonist is:",["0","0.5","1","More than 1"],0,"Antagonist has no efficacy, so IA = 0."],
+["Intrinsic activity of a partial agonist is:",["Zero","Exactly 1","Between 0 and 1","Less than zero"],2,"Partial agonist: IA between 0 and 1."],
+["A drug which binds to the receptor and does not produce an effect is:",["Antagonist","Partial agonist","Full agonist","Inverse agonist"],0,"Binding with no effect = antagonist."],
+["A competitive antagonist:",["Binds to a different site from the agonist","Binds to the same receptor site as the agonist","Destroys the receptor","Has no affinity"],1,"Competitive = same site, reversible competition."],
+["A non-competitive antagonist:",["Binds to the same site as the agonist","Binds to a different receptor site","Has efficacy","Is always a full agonist"],1,"It binds elsewhere and changes receptor shape so the agonist can no longer bind."],
+["In irreversible non-competitive antagonism, occupied receptors are:",["Temporarily occupied","Permanently blocked","Made more sensitive","Immediately recycled"],1,"Permanently blocked. The body must synthesize new receptors."],
+["After irreversible receptor blockade, the body must:",["Increase the usual dose only","Synthesize new receptors","Stop drug clearance","Produce histamine"],1,"Recovery needs new receptor synthesis."],
+["When the agonist and antagonist compete for the same receptor:",["Chemical antagonism","Physiological antagonism","Physical antagonism","Reversible competitive antagonism"],3,"Same receptor and competition = reversible competitive antagonism."],
+["Two drugs with opposite effects on the same biological system (different receptors):",["Chemical antagonism","Physiological antagonism","Physical antagonism","Pharmacological antagonism"],1,"Physiological antagonism, e.g. histamine (bronchoconstriction) vs adrenaline (bronchodilatation)."],
+["Which is an example of physiological antagonism?",["Heparin and protamine","Adrenaline and histamine on bronchial muscle","Atropine and dry mouth","Tolerance and dependence"],1,"Opposite effects on the same tissue through different receptors."],
+["Antagonism between two drugs carrying opposite charges is considered:",["Chemical antagonism","Physiological antagonism","Physical antagonism","Pharmacological antagonism"],2,"Physical antagonism, according to the lecture answer key: the drugs neutralize each other through opposite charges. Chemical antagonism is the next question: a direct chemical reaction forming an inactive compound."],
+["When one drug reacts chemically with another drug to form an inactive compound, it is considered:",["Chemical antagonism","Physiological antagonism","Physical antagonism","Pharmacological antagonism"],0,"Chemical antagonism = direct chemical reaction between the two drugs with no receptor involved. Physical antagonism is different: physical binding/adsorption, e.g. activated charcoal."],
+["Heparin overdose is treated with:",["Atropine","Adrenaline","Protamine","Histamine"],2,"Protamine (positive) neutralizes heparin (negative)."],
+["Activated charcoal adsorbing a poison is:",["Physiological antagonism","Physical antagonism","Irreversible antagonism","Competitive antagonism"],1,"Physical antagonism = physical binding or adsorption."],
+["Undesired normal actions produced by a therapeutic dose:",["Intolerance","Hypersensitivity","Tolerance","Side effect"],3,"Side effect = predictable, undesired, at a normal dose. Example: dry mouth with atropine."],
+["Exaggerated normal response due to too much drug:",["Intolerance","Hypersensitivity","Overdose","Side effect"],2,"Overdose = exaggerated normal response from excess dose."],
+["A physical or psychological state where the body or brain needs a substance to function normally:",["Intolerance","Hypersensitivity","Drug dependence","Side effect"],2,"Drug dependence. Withdraw the drug gradually to avoid withdrawal symptoms."],
+["Inability to tolerate the adverse effects of a drug:",["Intolerance","Hypersensitivity","Overdose","Side effect"],0,"Intolerance."],
+["Abnormal response due to an immune-mediated reaction:",["Intolerance","Hypersensitivity","Overdose","Side effect"],1,"Hypersensitivity (allergy) is an antigen-antibody reaction: urticaria, anaphylactic shock."],
+["Idiosyncrasy is an abnormal response due to:",["Genetic abnormality","Overdose","Therapeutic dose","Increased clearance"],0,"Idiosyncrasy = genetic abnormality."],
+["Tolerance means:",["Increased response to the usual dose","Decreased response to the usual dose after repeated use","Immune-mediated reaction","Permanent receptor blockade"],1,"Tolerance = reduced response after repeated use (receptor desensitization or increased clearance)."],
+["Drug efficacy is measured by:",["ED50","LD50","Emax","Therapeutic index"],2,"Emax (maximum effect) measures efficacy."],
+["Drug potency is measured by:",["Emax","ED50","LD50","TI"],1,"ED50 measures potency. TI measures safety."],
+["Drug safety is measured by:",["ED50","Emax","Therapeutic index (TI)","All answers"],2,"TI = LD50 / ED50 is the safety measure."],
+["The dose that produces 50% of the maximal response (desired effect in 50%):",["LD50","ED50","TI","Emax"],1,"ED50. LD50 = lethal dose in 50%."],
+["Therapeutic Index (TI) is calculated as:",["ED50 / LD50","Emax / ED50","LD50 / ED50","LD50 x ED50"],2,"TI = LD50 / ED50."],
+["Drug X has higher Emax than drug Y. Which is more efficacious?",["Drug X","Drug Y","Both","Cannot be determined"],0,"Higher Emax = higher efficacy."],
+["Drug A has a lower ED50 than drug B. Which is more potent?",["Drug B","Drug A","Both","Cannot be determined"],1,"Lower ED50 means a smaller dose is needed, so it is more potent."],
+["Morphine ED50 = 10 mg, paracetamol ED50 = 1000 mg. Which is more potent?",["Paracetamol","Morphine","Equal","Cannot be determined"],1,"Morphine is 1000/10 = 100 times more potent."],
+["Drug M has a higher TI than drug Y. Which is safer?",["Drug M","Drug Y","Both","Cannot be determined"],0,"Higher TI = safer."],
+["LD50 = 200 mg and ED50 = 20 mg. The TI is:",["0.1","4000","10","180"],2,"TI = 200 / 20 = 10."],
+["Paracetamol (Emax = 100) vs ibuprofen (Emax = 60): which is more efficacious?",["Paracetamol","Ibuprofen","Equal","Cannot be determined"],0,"Higher Emax = more efficacious."],
+["Absorption is the transfer of a drug from its site of administration to the:",["Liver","Systemic circulation","Kidney","Body tissues"],1,"Absorption ends in the systemic circulation. Moving into tissues is distribution."],
+["Which is a DRUG-related factor affecting absorption?",["Route of administration","pH within the gut","Degree of ionization","Patient age"],2,"Drug factors: ionization, lipid solubility, valency, dosage form. Patient factors: route, gut pH."],
+["Which form of a drug crosses membranes most easily?",["Ionized form","Non-ionized form","Protein-bound form","Highly charged form"],1,"The non-ionized (uncharged) form is lipid soluble and crosses easily."],
+["Increased lipid solubility generally leads to:",["Less passage through lipid bilayer","Better absorption","Complete inhibition","Increased molecular weight"],1,"Lipid-soluble drugs cross the lipid bilayer more easily."],
+["Vitamin C increases absorption of:",["Calcium","Iron","Sodium","Potassium"],1,"Vitamin C reduces ferric (Fe+++) to ferrous (Fe++), which is better absorbed."],
+["Absorption of weak ACIDIC drugs starts mainly in the:",["Intestine","Stomach","Kidney","Liver"],1,"Acids are non-ionized in the acidic stomach."],
+["Absorption of weak BASIC drugs starts mainly in the:",["Stomach","Intestine","Urinary bladder","Mouth"],1,"Bases are non-ionized in the slightly alkaline intestine."],
+["Which is NOT a factor affecting drug absorption?",["Lipid solubility","Ionization","Surface area","Volume of distribution"],3,"Volume of distribution is a distribution parameter, not an absorption factor."],
+["Tetracycline taken with milk has decreased absorption because of:",["Complex formation with calcium","Increased gastric acid","Receptor blockade","Increased metabolism"],0,"Tetracycline chelates calcium, forming an unabsorbable complex."],
+["Which dosage form is generally absorbed fastest?",["Tablets","Suspensions","Solutions","All the same"],2,"Solutions need no disintegration or dissolution."],
+["True or False: The trade name is uniform all over the world.",TF,1,"False. The generic name is uniform; a drug can have several trade names."],
+["True or False: In reversible antagonism, the blockade is permanent.",TF,1,"False. Reversible blockade is temporary. Permanent = irreversible."],
+["True or False: Emax is a measure of drug potency.",TF,1,"False. Emax measures efficacy. ED50 measures potency."]
+];
+var i=0,A=[];
+var app=document.getElementById("app");
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+function counts(){var c=0,w=0;for(var k=0;k<Q.length;k++){if(A[k]===undefined)continue;if(A[k]===Q[k][2])c++;else w++}return[c,w]}
+function head(){var t=counts();document.getElementById("sc").innerHTML='<span style="color:var(--ok)">\u2714 '+t[0]+'</span> &nbsp; <span style="color:var(--no)">\u2718 '+t[1]+'</span>'}
+function render(){
+  document.getElementById("pb").style.width=(i/Q.length*100)+"%";
+  head();
+  if(i>=Q.length){
+    var t=counts(),p=Math.round(t[0]/Q.length*100),wr=[];
+    for(var k=0;k<Q.length;k++)if(A[k]!==Q[k][2])wr.push(k);
+    var msg=p>=90?"Excellent!":p>=70?"Good job, keep going.":p>=50?"Fair. Review the missed questions.":"Needs more revision.";
+    document.getElementById("pos").textContent="Finished";
+    app.innerHTML='<div class="q"><div class="big">'+t[0]+' / '+Q.length+' ('+p+'%)</div><p>'+msg+'</p>'+
+    '<p><span style="color:var(--ok)">Correct: '+t[0]+'</span> &nbsp; <span style="color:var(--no)">Wrong: '+(Q.length-t[0])+'</span></p>'+
+    (wr.length?'<p>Review these:</p><ol>'+wr.map(function(n){return '<li>'+esc(Q[n][0])+'</li>'}).join('')+'</ol>':'<p>Perfect score.</p>')+
+    '<a class="tg" href="https://t.me/News_Nursing" target="_blank" rel="noopener">\u0642\u0646\u0627\u0629 \u062a\u0645\u0631\u064a\u0636 \u0628\u0644\u0633 \u0639\u0644\u0649 \u062a\u064a\u0644\u064a\u062c\u0631\u0627\u0645</a>'+
+    '<div class="nav"><button id="bk">Back</button><button class="next" id="rs">Restart</button></div></div>';
+    document.getElementById("bk").onclick=function(){i=Q.length-1;render()};
+    document.getElementById("rs").onclick=function(){i=0;A=[];render()};
+    return;
+  }
+  var q=Q[i];
+  document.getElementById("pos").textContent="Question "+(i+1)+" of "+Q.length;
+  var h='<div class="q"><h2>'+esc(q[0])+'</h2>';
+  q[1].forEach(function(o,k){h+='<button class="opt" data-k="'+k+'">'+"ABCD"[k]+". "+esc(o)+'</button>'});
+  h+='<div id="fb"></div><div class="nav"><button id="bk"'+(i?'':' disabled')+'>Back</button><button class="next" id="nx" style="display:none"></button></div></div>';
+  app.innerHTML=h;
+  app.querySelectorAll("button.opt").forEach(function(b){b.onclick=function(){pick(+b.dataset.k)}});
+  document.getElementById("bk").onclick=function(){if(i>0){i--;render()}};
+  document.getElementById("nx").onclick=function(){i++;render()};
+  if(A[i]!==undefined)show();
+}
+function pick(k){if(A[i]!==undefined)return;A[i]=k;head();show();document.getElementById("nx").focus()}
+function show(){
+  var q=Q[i],k=A[i],good=k===q[2],bs=app.querySelectorAll("button.opt");
+  bs.forEach(function(b){b.disabled=true});
+  bs[q[2]].classList.add("ok");if(!good)bs[k].classList.add("no");
+  document.getElementById("fb").innerHTML='<div class="ex'+(good?'':' bad')+'"><b>'+(good?"Correct.":"Not quite.")+'</b> '+esc(q[3])+'</div>';
+  var n=document.getElementById("nx");n.style.display="block";n.textContent=i+1<Q.length?"Next question":"See results";
+}
+render();
+</script></body></html>
